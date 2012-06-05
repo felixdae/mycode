@@ -1,0 +1,4 @@
+REVIEWBOARD_URL = "http://rpc-rb-mysql.bocaiwawa.com"
+USERNAME = "felix"
+PASSWORD = "felix"
+#REPOSITORY = 'rpc'

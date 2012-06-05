@@ -1,0 +1,17 @@
+K 8
+passtype
+V 6
+simple
+K 8
+password
+V 5
+felix
+K 15
+svn:realmstring
+V 62
+<svn://192.168.0.25:9999> f6489a72-7f93-11e0-8b43-2f49487eeae9
+K 8
+username
+V 5
+felix
+END

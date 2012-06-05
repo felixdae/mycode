@@ -1,0 +1,17 @@
+K 8
+passtype
+V 6
+simple
+K 8
+password
+V 5
+felix
+K 15
+svn:realmstring
+V 29
+<svn://192.168.0.25:9999> app
+K 8
+username
+V 5
+felix
+END
