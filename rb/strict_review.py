@@ -39,41 +39,68 @@ def get_os_log_dir():
         return get_os_conf_dir()
     return '/var/log'
 
-OS_CONF_DIR = get_os_conf_dir()
+def LoadReposConf(rc):
+    OS_CONF_DIR = get_os_conf_dir()
 
-conf = ConfigParser.ConfigParser()
+    conf = ConfigParser.ConfigParser()
 
-conf_file = os.path.join(OS_CONF_DIR, 'reviewboard-svn-hooks', 'conf.ini')
-if not conf.read(conf_file):
-    raise StandardError('invalid configuration file:%s'%conf_file)
+    conf_file = os.path.join(OS_CONF_DIR, 'reviewboard-svn-hooks', rc + '_conf.ini')
+    if not conf.read(conf_file):
+        raise StandardError('invalid configuration file:%s'%conf_file)
 
+    REPOS_PATH = conf.get('rule', 'repos')
+    MIN_SHIP_IT_COUNT = conf.getint('rule', 'min_ship_it_count')
+    MIN_EXPERT_SHIP_IT_COUNT = conf.getint('rule', 'min_expert_ship_it_count')
+    experts = conf.get('rule', 'experts')
+    EXPERTS = split(experts)
+    review_path = conf.get('rule', 'review_path')
+    REVIEW_PATH = split(review_path)
+    white_list = conf.get('rule', 'white_list')
+    WHITE_LIST = split(white_list)
+    return {"REPOS_PATH":REPOS_PATH,"MIN_SHIP_IT_COUNT":MIN_SHIP_IT_COUNT,\
+            "MIN_EXPERT_SHIP_IT_COUNT":MIN_EXPERT_SHIP_IT_COUNT,\
+            "EXPERTS":EXPERTS,"REVIEW_PATH":REVIEW_PATH,"WHITE_LIST":WHITE_LIST} 
 
-COOKIE_FILE = os.path.join(get_os_temp_dir(), 'reviewboard-svn-hooks-cookies.txt')
+def LoadConf():
+    OS_CONF_DIR = get_os_conf_dir()
 
-DEBUG = conf.getint('common', 'debug')
+    conf = ConfigParser.ConfigParser()
+
+    conf_file = os.path.join(OS_CONF_DIR, 'reviewboard-svn-hooks', 'conf.ini')
+    if not conf.read(conf_file):
+        raise StandardError('invalid configuration file:%s'%conf_file)
+
+    repos_list = conf.get('common', 'repos_list')
+    REPOS_LIST = split(repos_list)
+    DEBUG = conf.getint('common', 'debug')
+    RB_SERVER = conf.get('reviewboard', 'url')
+    USERNAME = conf.get('reviewboard', 'username')
+    PASSWORD = conf.get('reviewboard', 'password')
+    ret = {"DEBUG":DEBUG,"RB_SERVER":RB_SERVER,"USERNAME":USERNAME,"PASSWORD":PASSWORD,"REPOS_LIST":REPOS_LIST}
+    for rc in REPOS_LIST:
+        rcf = LoadReposConf(rc)
+        ret[rcf["REPOS_PATH"]]=rcf
+    return ret
+    
+global_conf = LoadConf()
+
+def GetConf(option):
+    return global_conf[option]
+
+def GetReposConf(repos, option):
+    return global_conf[repos][option]
 
 def debug(s):
-    if not DEBUG:
+    if not GetConf('DEBUG'):
         return
     f = open(os.path.join(get_os_log_dir(), 'reviewboard-svn-hooks', 'debug.log'), 'at')
     print >>f, str(datetime.datetime.now()), s
     f.close()
 
-RB_SERVER = conf.get('reviewboard', 'url')
-USERNAME = conf.get('reviewboard', 'username')
-PASSWORD = conf.get('reviewboard', 'password')
-
-MIN_SHIP_IT_COUNT = conf.getint('rule', 'min_ship_it_count')
-MIN_EXPERT_SHIP_IT_COUNT = conf.getint('rule', 'min_expert_ship_it_count')
-experts = conf.get('rule', 'experts')
-EXPERTS = split(experts)
-review_path = conf.get('rule', 'review_path')
-REVIEW_PATH = split(review_path)
-white_list = conf.get('rule', 'white_list')
-WHITE_LIST = split(white_list)
-
 class SvnError(StandardError):
     pass
+
+COOKIE_FILE = os.path.join(get_os_temp_dir(), 'reviewboard-svn-hooks-cookies.txt')
 
 class Opener(object):
     def __init__(self, server, username, password, cookie_file = None):
@@ -128,7 +155,7 @@ def add_to_rid_db(rid):
 def check_rb(repos, txn):
     rid = get_review_id(repos, txn)
     path = 'api/review-requests/' + str(rid) + '/reviews/'
-    opener = Opener(RB_SERVER, USERNAME, PASSWORD)
+    opener = Opener(GetConf('RB_SERVER'), GetConf('USERNAME'), GetConf('PASSWORD'))
     rsp = opener.open(path, {})
     reviews = json.loads(rsp)
     if reviews['stat'] != 'ok':
@@ -139,13 +166,13 @@ def check_rb(repos, txn):
         if ship_it:
             ship_it_users.add(item['links']['user']['title'])
     
-    if len(ship_it_users) < MIN_SHIP_IT_COUNT:
+    if len(ship_it_users) < GetReposConf(repos, 'MIN_SHIP_IT_COUNT'):
         raise SvnError, "not enough of ship_it."
     expert_count = 0
     for user in ship_it_users:
-        if user in EXPERTS:
+        if user in GetReposConf(repos, 'EXPERTS'):
             expert_count += 1
-    if expert_count < MIN_EXPERT_SHIP_IT_COUNT:
+    if expert_count < GetReposConf(repos, 'MIN_EXPERT_SHIP_IT_COUNT'):
         raise SvnError, 'not enough of key user ship_it.'
     add_to_rid_db(rid)
 
@@ -159,11 +186,11 @@ def _main():
     debug(author)
 #    for ktx in WHITE_LIST:
 #        debug("xxx:"+ktx+":yyy")
-    if author in WHITE_LIST:
+    if author in GetReposConf(repos, 'WHITE_LIST'):
         debug(author+" in whitelist")
         return
-    
-    if not REVIEW_PATH:
+#    debug("xxx"+str(len(REVIEW_PATH))+"yyy")
+    if not GetReposConf(repos, 'REVIEW_PATH'):
         check_rb(repos, txn)
         return 
 
@@ -172,7 +199,7 @@ def _main():
     debug(changed)
     for line in changed.split('\n'):
         f = line[4:]
-        for review_path in REVIEW_PATH:
+        for review_path in GetReposConf(repos, 'REVIEW_PATH'):
             if review_path in f:
                 check_rb(repos, txn)
                 return
