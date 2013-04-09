@@ -25,12 +25,12 @@ class SVNClient(SCMClient):
         super(SVNClient, self).__init__(**kwargs)
 
     def get_repository_info(self):
-        if not check_install('svn help'):
+        if not check_install('/usr/local/svn/bin/svn help'):
             return None
 
         # Get the SVN repository path (either via a working copy or
         # a supplied URI)
-        svn_info_params = ["svn", "info"]
+        svn_info_params = ["/usr/local/svn/bin/svn", "info"]
 
         if getattr(self.options, 'repository_url', None):
             svn_info_params.append(self.options.repository_url)
@@ -38,6 +38,10 @@ class SVNClient(SCMClient):
         # Add --non-interactive so that this command will not hang
         #  when used  on a https repository path
         svn_info_params.append("--non-interactive")
+        svn_info_params.append("--username")
+        svn_info_params.append("felix")
+        svn_info_params.append("--password")
+        svn_info_params.append("felix")
 
         data = execute(svn_info_params,
                        ignore_errors=True)
@@ -84,7 +88,7 @@ class SVNClient(SCMClient):
 
     def scan_for_server_property(self, repository_info):
         def get_url_prop(path):
-            url = execute(["svn", "propget", "reviewboard:url", path]).strip()
+            url = execute(["/usr/local/svn/bin/svn", "propget", "reviewboard:url", path]).strip()
             return url or None
 
         for path in walk_parents(os.getcwd()):
@@ -105,14 +109,14 @@ class SVNClient(SCMClient):
         makes parent diffs possible, so we never return a parent diff
         (the second value in the tuple).
         """
-        return (self.do_diff(["svn", "diff", "--diff-cmd=diff"] + files),
+        return (self.do_diff(["/usr/local/svn/bin/svn", "diff", "--diff-cmd=diff"] + files),
                 None)
 
     def diff_changelist(self, changelist):
         """
         Performs a diff for a local changelist.
         """
-        return (self.do_diff(["svn", "diff", "--changelist", changelist]),
+        return (self.do_diff(["/usr/local/svn/bin/svn", "diff", "--changelist", changelist]),
                 None)
 
     def diff_between_revisions(self, revision_range, args, repository_info):
@@ -149,12 +153,12 @@ class SVNClient(SCMClient):
 
             old_url = url + '@' + revisions[0]
 
-            return (self.do_diff(["svn", "diff", "--diff-cmd=diff", old_url,
+            return (self.do_diff(["/usr/local/svn/bin/svn", "diff", "--diff-cmd=diff", old_url,
                                   new_url] + files,
                                  repository_info), None)
         # Otherwise, perform the revision range diff using a working copy
         else:
-            return (self.do_diff(["svn", "diff", "--diff-cmd=diff", "-r",
+            return (self.do_diff(["/usr/local/svn/bin/svn", "diff", "--diff-cmd=diff", "-r",
                                   revision_range],
                                  repository_info), None)
 
@@ -295,7 +299,7 @@ class SVNClient(SCMClient):
     def svn_info(self, path, ignore_errors=False):
         """Return a dict which is the result of 'svn info' at a given path."""
         svninfo = {}
-        result = execute(["svn", "info", path],
+        result = execute(["/usr/local/svn/bin/svn", "info", path],
                          split_lines=True,
                          ignore_errors=ignore_errors,
                          none_on_ignored_error=True)
