@@ -57,9 +57,12 @@ def LoadReposConf(rc):
     REVIEW_PATH = split(review_path)
     white_list = conf.get('rule', 'white_list')
     WHITE_LIST = split(white_list)
+    black_list = conf.get('rule', 'black_list')
+    BLACK_LIST = split(black_list)
     return {"REPOS_PATH":REPOS_PATH,"MIN_SHIP_IT_COUNT":MIN_SHIP_IT_COUNT,\
             "MIN_EXPERT_SHIP_IT_COUNT":MIN_EXPERT_SHIP_IT_COUNT,\
-            "EXPERTS":EXPERTS,"REVIEW_PATH":REVIEW_PATH,"WHITE_LIST":WHITE_LIST} 
+            "EXPERTS":EXPERTS,"REVIEW_PATH":REVIEW_PATH,"WHITE_LIST":WHITE_LIST,\
+	    "BLACK_LIST":BLACK_LIST} 
 
 def LoadConf():
     OS_CONF_DIR = get_os_conf_dir()
@@ -137,7 +140,7 @@ def get_review_id(repos, txn):
     svnlook = make_svnlook_cmd('log', repos, txn)
     log = get_cmd_output(svnlook)
     debug(log)
-    rid = re.search(r'review:[ ]*([0-9]+)', log, re.M | re.I)
+    rid = re.search(r'^[ ]*review:[ ]*([0-9]+)', log, re.M | re.I)
     if rid:
         return rid.group(1)
     raise SvnError('No review id.')
@@ -154,6 +157,9 @@ def add_to_rid_db(rid):
 
 def check_rb(repos, txn):
     rid = get_review_id(repos, txn)
+    debug(rid)
+    if int(rid) == 0:
+        return
     path = 'api/review-requests/' + str(rid) + '/reviews/'
     opener = Opener(GetConf('RB_SERVER'), GetConf('USERNAME'), GetConf('PASSWORD'))
     rsp = opener.open(path, {})
@@ -181,14 +187,24 @@ def _main():
     repos = sys.argv[1]
     txn = sys.argv[2]
 
+#    svndiff = make_svnlook_cmd('diff', repos, txn)
+#    diff = get_cmd_output(svndiff).strip()
+#    debug(diff)
+
     svnauthor = make_svnlook_cmd('author', repos, txn)
     author = get_cmd_output(svnauthor).strip()
+    debug(repos)
     debug(author)
 #    for ktx in WHITE_LIST:
 #        debug("xxx:"+ktx+":yyy")
     if author in GetReposConf(repos, 'WHITE_LIST'):
         debug(author+" in whitelist")
         return
+    if author in GetReposConf(repos, 'BLACK_LIST'):
+        check_rb(repos, txn)
+        return
+#    else:
+#        return
 #    debug("xxx"+str(len(REVIEW_PATH))+"yyy")
     if not GetReposConf(repos, 'REVIEW_PATH'):
         check_rb(repos, txn)
@@ -199,8 +215,10 @@ def _main():
     debug(changed)
     for line in changed.split('\n'):
         f = line[4:]
+	debug(f)
         for review_path in GetReposConf(repos, 'REVIEW_PATH'):
-            if review_path in f:
+            debug(review_path)
+	    if review_path in f:
                 check_rb(repos, txn)
                 return
 
