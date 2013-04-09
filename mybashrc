@@ -38,3 +38,4 @@ export LANG=en_US
 ulimit -c 200000
 set -o vi
 alias astyle='/usr/local/astyle/bin/astyle'
+
