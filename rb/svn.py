@@ -430,3 +430,4 @@ class SVNRepositoryInfo(RepositoryInfo):
         if split[-1] == '':
             split = split[0:-1]
         return split
+    #test
