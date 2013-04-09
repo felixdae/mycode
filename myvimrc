@@ -90,3 +90,4 @@ function! s:insert_gates()
     normal! kk
     endfunction
 autocmd BufNewFile *.{h,hpp} call <SID>insert_gates()
+
