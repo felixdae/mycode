@@ -51,6 +51,21 @@ struct IsNoise: public std::unary_function<char, bool>
     }
 };
 
+struct DupUnderscore: public std::binary_function<char, char, bool>
+{
+    bool operator()(const char a, const char b)
+    {
+        return (a == '_' and b == '_');
+    }
+};
+
+string& UniqueUnderscore(string& strIn)
+{
+    //iterator unique( iterator start, iterator end, BinPred p );
+    strIn.erase(std::unique(strIn.begin(), strIn.end(), DupUnderscore()), strIn.end());
+    return strIn;
+}
+
 struct DupSlash : public std::binary_function<char, char, bool>
 {
     bool operator()(const char a, const char b)
@@ -78,7 +93,8 @@ bool IsLegalYear(const string& strIn)
         "96", "97", "98", "99",
     };
     vector<string> vecYear(lsYear + 0, lsYear + sizeof(lsYear) / sizeof(lsYear[0]));
-    return std::find(vecYear.begin(), vecYear.end(), strIn) != vecYear.end();
+    //return std::find(vecYear.begin(), vecYear.end(), strIn) != vecYear.end();
+    return std::binary_search(vecYear.begin(), vecYear.end(), strIn);
 }
 
 bool IsLegalMonth(const string& strIn)
@@ -87,7 +103,8 @@ bool IsLegalMonth(const string& strIn)
         "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12",
     };
     vector<string> vecMonth(lsMonth + 0, lsMonth + sizeof(lsMonth) / sizeof(lsMonth[0]));
-    return std::find(vecMonth.begin(), vecMonth.end(), strIn) != vecMonth.end();
+    //return std::find(vecMonth.begin(), vecMonth.end(), strIn) != vecMonth.end();
+    return std::binary_search(vecMonth.begin(), vecMonth.end(), strIn);
 }
 
 bool IsLegalDay(const string& strIn)
@@ -97,7 +114,8 @@ bool IsLegalDay(const string& strIn)
         "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", 
     };
     vector<string> vecDay(lsDay + 0, lsDay + sizeof(lsDay) / sizeof(lsDay[0]));
-    return std::find(vecDay.begin(), vecDay.end(), strIn) != vecDay.end();
+    //return std::find(vecDay.begin(), vecDay.end(), strIn) != vecDay.end();
+    return std::binary_search(vecDay.begin(), vecDay.end(), strIn);
 }
 
 bool IsLegalHour(const string& strIn)
@@ -107,7 +125,8 @@ bool IsLegalHour(const string& strIn)
         "16", "17", "18", "19", "20", "21", "22", "23", 
     };
     vector<string> vecHour(lsHour + 0, lsHour + sizeof(lsHour) / sizeof(lsHour[0]));
-    return std::find(vecHour.begin(), vecHour.end(), strIn) != vecHour.end();
+    //return std::find(vecHour.begin(), vecHour.end(), strIn) != vecHour.end();
+    return std::binary_search(vecHour.begin(), vecHour.end(), strIn);
 }
 
 bool IsLegalMin(const string& strIn)
@@ -119,7 +138,8 @@ bool IsLegalMin(const string& strIn)
         "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", 
     };
     vector<string> vecMin(lsMin + 0, lsMin + sizeof(lsMin) / sizeof(lsMin[0]));
-    return std::find(vecMin.begin(), vecMin.end(), strIn) != vecMin.end();
+    //return std::find(vecMin.begin(), vecMin.end(), strIn) != vecMin.end();
+    return std::binary_search(vecMin.begin(), vecMin.end(), strIn);
 }
 
 string& RmDateTime(string& strIn)
@@ -132,15 +152,21 @@ string& RmDateTime(string& strIn)
     string strPadIn = strIn + string(8, '$');
     while (i < strPadIn.length())
     {
-        if (strPadIn[i] != '/')
+//        printf("%s\n", strTmp.c_str());
+        if (not (strPadIn[i] >= '0' and strPadIn[i] <= '9'))
         {
-            strTmp.push_back(strPadIn[i]);
-            ++i;
+            strTmp.push_back(strPadIn[i++]);
         }
         else
         {
-            char cTemp = strPadIn[i++];
-            if (strPadIn.substr(i, 2) == "20" and IsLegalYear(strPadIn.substr(i + 2, 2)) and IsLegalMonth(strPadIn.substr(i + 4, 2)) and IsLegalDay(strPadIn.substr(i + 6, 2)))
+//            strTmp.push_back(strPadIn[i++]);
+            if (strPadIn.substr(i, 2) == "20" and IsLegalYear(strPadIn.substr(i + 2, 2)) and IsLegalMonth(strPadIn.substr(i + 4, 2)) 
+                    and IsLegalDay(strPadIn.substr(i + 6, 2)) and IsLegalHour(strPadIn.substr(i + 8, 2)))
+            {
+                i += 10;
+            }
+            else if (strPadIn.substr(i, 2) == "20" and IsLegalYear(strPadIn.substr(i + 2, 2)) 
+                    and IsLegalMonth(strPadIn.substr(i + 4, 2)) and IsLegalDay(strPadIn.substr(i + 6, 2)))
             {
                 i += 8;
             }
@@ -162,15 +188,19 @@ string& RmDateTime(string& strIn)
             }
             else
             {
-                strPadIn.push_back(cTemp);
-                strPadIn.append(strPadIn.substr(i, 2));
-                i += 2;
+                strTmp.push_back(strPadIn[i++]);
             }
         }
     }
     strIn.swap(strTmp);
     assert(strIn.substr(strIn.length() - 8) == string(8, '$'));
     strIn.erase(strIn.length() - 8, 8);
+    return strIn;
+}
+
+string& RmNoise(string& strIn)
+{
+    strIn.erase(std::remove_if(strIn.begin(), strIn.end(), IsNoise()), strIn.end());
     return strIn;
 }
 
@@ -182,24 +212,33 @@ string& NormalizeLogPath(string& strIn)
     //4,remove suffix
     //4,replace all char not in (0-9,a-z,A-Z,/,_) with ""
     //5,remove datetime
-    //date 20120101,120101,0101
+    //date 2012010115, 20120101,120101,0101
     //time 1354,14
     strIn = trim(strIn);
     strIn = UniqueSlash(strIn);
     strIn = RmCommonDirName(strIn);
     strIn = RmExtendName(strIn);
-    strIn.erase(std::remove_if(strIn.begin(), strIn.end(), IsNoise()));
+    strIn = RmNoise(strIn);
     strIn = RmDateTime(strIn);
+    strIn = UniqueSlash(strIn);
+    return strIn;
 }
 
-int main(int argc, char** argv)
-{
-    char in[200];
-    while(scanf("%s", in) != EOF)
-    {
-        string strIn = string(in);
-        printf("%s\n", NormalizeLogPath(strIn).c_str());
-    }
-    return 0;
-}
+//int main(int argc, char** argv)
+//{
+//    char in[200];
+//    while(scanf("%s", in) != EOF)
+//    {
+//        string strIn = string(in);
+//        printf("%s\n", NormalizeLogPath(strIn).c_str());
+//    }
+////    if (argc < 2)
+////    {
+////        printf("no argv[1]\n");
+////        return -1;
+////    }
+////    string strIn = string(argv[1]);
+////    printf("%s\n", NormalizeLogPath(strIn).c_str());
+//    return 0;
+//}
 
