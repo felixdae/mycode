@@ -2,6 +2,8 @@
 //    /usr/local/bocai_home/log/my/tenpay/20130313/payNotifyUrl_error.log
 //    /usr/local/bocai_home/log/my/tenpay/20130313/01_order_query_error.log
 #include <string>
+//#include <regex>
+
 using namespace std;
 
 string& lTrim(string& ss)
@@ -28,7 +30,7 @@ string& RmCommonDirName(string& strIn)
 {
     const strPrefix("/usr/local/bocai_home/log/");
     if (strIn.substr(0, strPrefix.length()) == strPrefix)
-        strIn.earse(0, strPrefix.length());
+        strIn.erase(0, strPrefix.length());
     return strIn;
 }
 
@@ -40,41 +42,26 @@ string& RmExtendName(string& strIn)
     return strIn;
 }
 
+struct IsNoise: public std::unary_function<char, bool>
+{
+    bool operator()(const char a)
+    {
+        return (not ((a >= '0' and a <= '9') or (a >= 'a' and a <= 'z') or (a >= 'A' and a <= 'Z') or a = '/' or a = '_'));
+    }
+};
+
+struct DupSlash : public std::binary_function<char, char, bool>
+{
+    bool operator()(const char a, const char b)
+    {
+        return (a == '/' and b == '/');
+    }
+};
+
 string& UniqueSlash(string& strIn)
 {
     //iterator unique( iterator start, iterator end, BinPred p );
-    int dwState = 0;
-    string strTmp;
-    int i = 0;
-    while (i < strIn.length())
-    {
-        char cCurrChar = strIn[i];
-        switch(dwState)
-        {
-            case 0:
-            {
-                strTmp.append(cCurrChar);
-                if (cCurrChar == '/')
-                    dwState = 1;
-            }
-            break;
-            case 1:
-            {
-                if (cCurrChar != '/')
-                {
-                    strTmp.append(cCurrChar);
-                    dwState = 0;
-                }
-            }
-            break;
-            default:
-            {
-                assert(0);
-            }
-            break;
-        }
-    }
-    strIn.swap(strTmp);
+    strIn.erase(std::unique(strIn.begin(), strIn.end(), DupSlash()), strIn.end());
     return strIn;
 }
 
@@ -134,6 +121,58 @@ bool IsLegalMin(const string& strIn)
     return std::find(vecMin.begin(), vecMin.end(), strIn) != vecMin.end();
 }
 
+string& RmDateTime(string& strIn)
+{
+//    std::tr1::regex regSlashDate("/((?:20)?[0-9]{2})?(?:0[1-9]|1[0-2])(?:[0-2][1-9]|[1-3]0|31)");
+//    std::tr1::regex regSlash("/[0-1][0-9]|2[0-3]([0-5][0-9])?");
+    int i = 0;
+    string strTmp;
+    string strPadIn = strIn + string(8, '$');
+    while (i < strIn.length())
+    {
+        if (strPadIn[i] != '/')
+        {
+            strTmp.append(strPadIn[i]);
+            ++i;
+        }
+        else
+        {
+            char cTemp = strPadIn[i];
+            ++i;
+            if (strPadIn.substr(i, 2) == "20" and IsLegalYear(strPadIn.substr(i + 2, 2)) and IsLegalMonth(strPadIn.substr(i + 4, 2)) and IsLegalDay(strPadIn.substr(i + 6, 2)))
+            {
+                i += 8;
+            }
+            else if(IsLegalYear(strPadIn.substr(i, 2)) and IsLegalMonth(strPadIn.substr(i + 2, 2)) and IsLegalDay(strPadIn.substr(i + 4, 2)))
+            {
+                i += 6;
+            }
+            else if(IsLegalMonth(strPadIn.substr(i, 2)) and IsLegalDay(strPadIn.substr(i + 2, 2)))
+            {
+                i += 4;
+            }
+            else if(IsLegalHour(strpadin.substr(i, 2)) and IsLegalMin(strPadIn.substr(i + 2, 2)))
+            {
+                i += 4;
+            }
+            else if(IsLegalHour(strpadin.substr(i, 2)))
+            {
+                i += 2;
+            }
+            else
+            {
+                strPadIn.append(cTemp);
+                strPadIn.append(strpadin.substr(i, 2));
+                i += 2;
+            }
+        }
+    }
+    strIn.swap(strTmp);
+    assert(strIn.substr(strIn.length() - 8) == string(8, '$'));
+    strIn.erase(strIn.length() - 8);
+    return strIn;
+}
+
 string& NormalizeLogPath(string& strIn)
 {
     //1,trim
@@ -148,5 +187,7 @@ string& NormalizeLogPath(string& strIn)
     strIn = UniqueSlash(strIn);
     strIn = RmCommonDirName(strIn);
     strIn = RmExtendName(strIn);
+    strIn.erase(std::remove_if(strIn.begin(), strIn.end(), IsNoise()));
+
 }
 
