@@ -1,6 +1,6 @@
-//    /usr/local/bocai_home/log/my/tenpay/20130313/payNotifyUrl.log
-//    /usr/local/bocai_home/log/my/tenpay/20130313/payNotifyUrl_error.log
-//    /usr/local/bocai_home/log/my/tenpay/20130313/01_order_query_error.log
+//    /usr/local/****_home/log/my/tenpay/20130313/payNotifyUrl.log
+//    /usr/local/****_home/log/my/tenpay/20130313/payNotifyUrl_error.log
+//    /usr/local/****_home/log/my/tenpay/20130313/01_order_query_error.log
 #include <string>
 #include <vector>
 #include <cassert>
@@ -29,7 +29,7 @@ string& trim(string& st)
 
 string& RmCommonDirName(string& strIn)
 {
-    const string strPrefix("/usr/local/bocai_home/log/");
+    const string strPrefix("/usr/local/****_home/log/");
     if (strIn.substr(0, strPrefix.length()) == strPrefix)
         strIn.erase(0, strPrefix.length());
     return strIn;

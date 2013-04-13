@@ -1,4 +1,4 @@
-REVIEWBOARD_URL = "http://rpc-rb-mysql.bocaiwawa.com"
+REVIEWBOARD_URL = "http://rpc-rb-mysql.****.com"
 USERNAME = "felix"
 PASSWORD = "felix"
 #REPOSITORY = 'rpc'

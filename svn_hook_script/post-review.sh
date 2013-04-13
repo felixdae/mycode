@@ -42,12 +42,12 @@ nwmes=`echo $message|sed 's/^[  \f\n\r\t\v]*po-rev[  \f\n\r\t\v]*//'|sed 's/^[  
 if [ -n "$cmd1" ]
 then
 #	echo "(xxxx(((("$cmd1")"$cmd2")))" >>/tmp/testpostreview.log
-	prcmd="post-review -p --server=http://rpc-rb-mysql.bocaiwawa.com --summary='"$nwmes"' --description='"$nwmes"' --target-groups="$rev_group" --submit-as="$author" --username=felix --password=felix --diff-filename="$diff_file" --repository-url="$rep_url
+	prcmd="post-review -p --server=http://rpc-rb-mysql.****.com --summary='"$nwmes"' --description='"$nwmes"' --target-groups="$rev_group" --submit-as="$author" --username=felix --password=felix --diff-filename="$diff_file" --repository-url="$rep_url
 elif [ -n "$cmd2" ]
 then
 #	echo "(yyyy(((("$cmd1")"$cmd2")))" >>/tmp/testpostreview.log
 	rid=`echo $message|sed 's/^[  \f\n\r\t\v]*up-rev:[  \f\n\r\t\v]*//'|sed 's/[^0-9].*//'`
-	prcmd="post-review -p -r "$rid" --diff-only --server=http://rpc-rb-mysql.bocaiwawa.com --change-description='"$nwmes"' --submit-as="$author" --username=felix --password=felix --diff-filename="$diff_file" --repository-url="$rep_url
+	prcmd="post-review -p -r "$rid" --diff-only --server=http://rpc-rb-mysql.****.com --change-description='"$nwmes"' --submit-as="$author" --username=felix --password=felix --diff-filename="$diff_file" --repository-url="$rep_url
 else
 	exit 0
 fi
