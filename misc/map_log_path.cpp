@@ -221,6 +221,8 @@ string& NormalizeLogPath(string& strIn)
     strIn = RmNoise(strIn);
     strIn = RmDateTime(strIn);
     strIn = UniqueSlash(strIn);
+    std::replace(strIn.begin(), strIn.end(), '/', '_');
+    strIn = UniqueUnderscore(strIn);
     return strIn;
 }
 
