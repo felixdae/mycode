@@ -124,5 +124,17 @@ namespace comm
             return StringHelper::Split(tmp, deli);
         }
 
+        std::string StringHelper::Join(const std::vector<std::string>& strs, char deli)
+        {
+            if (strs.empty())
+                return "";
+            if (strs.size() == 1)
+            {
+                return *strs.begin();
+            }
+            std::string res = *strs.begin();
+            for_each(strs.begin() + 1, strs.end(), [deli,&res](const std::string t){res += std::string(1, deli) + t;});
+            return res;
+        }
     }
 }

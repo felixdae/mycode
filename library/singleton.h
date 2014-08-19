@@ -8,11 +8,16 @@ namespace comm
         class DummyLock
         {
             public:
-                DummyLock();
-                virtual ~DummyLock();
+                DummyLock()
+                {
+                };
+                virtual ~DummyLock()
+                {
+                };
         };
 
-        template <typename ObjType, typename Lock = DummyLock> class Singleton
+        template <typename ObjType, typename Lock = DummyLock>
+        class Singleton
         {
             private:
                 Singleton();
@@ -32,8 +37,11 @@ namespace comm
                     return instance_;
                 }
             private:
-                static ObjType* instance_ = nullptr;
-        }
+                static ObjType* instance_;
+        };
+        template <typename ObjType, typename Lock> 
+        ObjType* Singleton<ObjType, Lock>::instance_ = nullptr;
     }
 }
+
 #endif /* SINGLETON_H */

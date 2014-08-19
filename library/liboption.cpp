@@ -1,3 +1,4 @@
+#include <stdexcept>
 #include "liboption.h"
 
 namespace comm
@@ -38,9 +39,11 @@ namespace comm
                         {
                             this->error_msg_ = "unknown option: " + std::string(1, optopt) + " or no argument supplied for option: " + std::string(1, optopt);
                         }
+                        throw std::runtime_error(this->error_msg_);
                         return false;
                     case ':':
                         this->error_msg_ = "no argument supplied for option: " + std::string(1, optopt);
+                        throw std::runtime_error(this->error_msg_);
                         return false;
                     default:
                         if (optarg != NULL)

@@ -13,17 +13,22 @@ CXXFLAGS += -Wextra -pthread
 
 ARCPP = $(AR) $(ARFLAGS) $@ 
 
-LWS_INCLUDE = -I/usr/local/lws/include/
-LWS_LIB = -L/usr/local/lws/lib/ -lwebsockets
+#LWS_INCLUDE = -I/usr/local/lws/include/
+#LWS_LIB = -L/usr/local/lws/lib/ -lwebsockets
 
-COMM_INCLUDE = $(LWS_INCLUDE) -I.
-COMM_LIB= $(LWS_LIB) -lcurl -lmcrypt -lcrypto -lxml2 -lstdc++ -lpthread -lm
+REDIS_INCLUDE = -I/usr/local/hiredis/include
+REDIS_LIB = -L/usr/local/hiredis/lib -lhiredis
+
+COMM_INCLUDE = -I. $(REDIS_INCLUDE)
+COMM_LIB= $(REDIS_LIB) -lcurl -lmcrypt -lcrypto -lxml2 -lstdc++ -lpthread -lm
 
 TARGETDIR = build
 
 all : $(TARGETDIR)/libcomm.a
 OBJS = \
 	$(TARGETDIR)/liboption.o \
+	$(TARGETDIR)/libredisclient.o \
+	$(TARGETDIR)/libprocessutil.o \
 	$(TARGETDIR)/libxmlparser.o \
 	$(TARGETDIR)/libstringhelper.o \
 	$(TARGETDIR)/libcrypto.o \
@@ -76,6 +81,7 @@ TESTOBJS = \
 	$(TESTDIR)/test_libjson.o \
 	$(TESTDIR)/test_libqueue.o \
 	$(TESTDIR)/test_libcrypto.o \
+	$(TESTDIR)/test_libredisclient.o \
 	$(TESTDIR)/test_libstringhelper.o \
 	$(TESTDIR)/test_liboption.o \
 	$(TESTDIR)/test_libxmlparser.o \
@@ -89,7 +95,7 @@ $(TESTS) : $(TESTDIR) $(TESTOBJS) $(TARGETDIR)/libcomm.a $(TESTDIR)/gtest_main.a
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(filter %.o %.a, $^) $(COMM_LIB) -o $@
 
 unittest : $(TESTS)
-	LD_LIBRARY_PATH=/usr/local/lws/lib/ ./$(TESTS)
+	LD_LIBRARY_PATH=/usr/local/hiredis/lib ./$(TESTS)
 
 clean :
 	rm -f $(TARGETDIR)/libcomm.a $(TARGETDIR)/*.o

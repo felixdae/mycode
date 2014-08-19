@@ -24,6 +24,7 @@ namespace comm
 
                 static std::vector<std::string> Split(const std::string& src, char deli);
                 static std::vector<std::string> SplitM(const std::string& src, char deli);
+                static std::string Join(const std::vector<std::string>& strs, char deli);
         };
     }
 }

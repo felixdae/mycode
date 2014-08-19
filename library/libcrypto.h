@@ -46,6 +46,7 @@ namespace comm
                 static std::string B64encode(const std::string& input);
                 static std::string B64decode(const std::string& input);
                 static std::string Md5(const std::string& input);
+                static std::string Sha1(const std::string& input);
                 static std::string HexDigest(const std::string& input);
                 //crc32
                 static uint32_t Crc32(const std::string& input);

@@ -8,24 +8,23 @@ namespace comm
 {
     namespace library
     {
-        FunctionGuard::FunctionGuard(const std::string& func_name, std::shared_ptr<Logger>& logger)
+        FunctionGuard::FunctionGuard(const std::string& func_name, Logger* logger)
             :logger_(logger), func_name_(func_name), 
-            enter_time_(time(NULL))
+            enter_time_(comm::library::DateTime::GetUnixTimestamp(true))
         {
-            this->logger_->Log(true, "enter function: %s", func_name.c_str());
+            this->logger_->Log(false, "enter function: %s", func_name.c_str());
         }
 
         FunctionGuard::~FunctionGuard()
         {
-            this->logger_->Log(true, "leave function: %s, use time: %d", this->func_name_.c_str(), time(NULL) - this->enter_time_);
+            this->logger_->Log(false, "leave function: %s, use time: %lld", this->func_name_.c_str(), comm::library::DateTime::GetUnixTimestamp(true) - this->enter_time_);
         }
 
-        Logger::Logger(const std::string& file_name, uint32_t max_file_num, uint32_t max_file_size, bool write_to_console)
-            :file_name_(file_name), max_file_num_(max_file_num), max_file_size_(max_file_size), 
-            log_debug_(false), rotate_duty_(true),
-            write_to_console_(write_to_console)
+        Logger::Logger()
+            :log_debug_(false),
+            rotate_duty_(true),
+            sync_(true)
         {
-            this->fp_ = fopen(file_name.c_str(), "a+");
         }
 
         Logger::~Logger()
@@ -36,11 +35,24 @@ namespace comm
             }
         }
 
-        int32_t Logger::SetLogDebug()
+        bool Logger::Init(const std::string& file_name, uint32_t max_file_num, uint32_t max_file_size, bool write_to_console, bool debug)
         {
-            this->log_debug_ = true;
-            return 0;
+            this->file_name_ = file_name;
+            this->max_file_num_ = max_file_num;
+            this->max_file_size_ = max_file_size;
+            this->write_to_console_ = write_to_console;
+            this->log_debug_ = debug;
+            this->fp_ = fopen(file_name.c_str(), "a+");
+            if (this->fp_ == NULL)
+                return false;
+            return true;
         }
+
+//        int32_t Logger::SetLogDebug()
+//        {
+//            this->log_debug_ = true;
+//            return 0;
+//        }
 
         int32_t Logger::ResetRotateDuty()
         {
@@ -69,9 +81,17 @@ namespace comm
             
             if (this->write_to_console_)
             {
-                fprintf(stdout, "[%s] %s\n", formatted.c_str(), buf);
+                fprintf(stdout, "[%s]%s\n", formatted.c_str(), buf);
+                if (this->sync_)
+                {
+                    fflush(stdout);
+                }
             }
-            fprintf(this->fp_, "[%s] %s\n", formatted.c_str(), buf);
+            fprintf(this->fp_, "[%s]%s\n", formatted.c_str(), buf);
+            if (this->sync_)
+            {
+                fflush(this->fp_);
+            }
 
             if (static_cast<uint32_t>(ftell(this->fp_)) > this->max_file_size_)
             {

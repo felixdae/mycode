@@ -36,12 +36,13 @@ TEST(Crypto, Crc32)//equivalent to php crc32()
 TEST(Crypto, Md5)
 {
     std::string input("Man is \"distinguished);//not only by\x7f\12\45 his reason, but \r\n" + std::string("\0", 1) + std::string("\x7b by this singular passion from other animals, which is a"));
-//    std::string output, hex;
-//    ASSERT_EQ(comm::library::Crypto::Md5(input, output), 0);
-//    ASSERT_EQ(comm::library::Crypto::HexDigest(output, hex), 0);
-
-    //printf("%s\n", hex.c_str());
     EXPECT_EQ(comm::library::Crypto::HexDigest(comm::library::Crypto::Md5(input)), "fffa87c52022b7e2492aee95b50563fe");
+}
+
+TEST(Crypto, Sha1)
+{
+    std::string input("Man is \"distinguishm other animals, which is a");
+    EXPECT_EQ(comm::library::Crypto::HexDigest(comm::library::Crypto::Sha1(input)), "68a5f1fc7772596800acc04cb0e654246ce2e7ca");
 }
 
 TEST(Crypto, Base64)

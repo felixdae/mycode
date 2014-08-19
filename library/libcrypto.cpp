@@ -44,6 +44,15 @@ namespace comm
             return crc ^ 0xffffffff;
         }
 
+        std::string Crypto::Sha1(const std::string& input)
+        {
+            const uint8_t *p_in = (uint8_t *)(input.c_str());
+            uint8_t tmp[80];
+            SHA1(p_in, input.length(), tmp);
+            std::string output((char*)tmp, 20);
+            return output;
+        }
+
         std::string Crypto::Md5(const std::string& input)
         {
             const uint8_t *p_in = (uint8_t *)(input.c_str());
@@ -230,7 +239,7 @@ namespace comm
             //Crypto::Md5(key, hash);
             std::string hex_hash = Crypto::HexDigest(Crypto::Md5(key));
             
-            std::shared_ptr<char> iv(new char[mcrypt_enc_get_iv_size(st_crypt)]);
+            std::shared_ptr<char> iv(new char[mcrypt_enc_get_iv_size(st_crypt)], [](char *p){delete[] p;});
             memcpy(iv.get(), hex_hash.c_str(), mcrypt_enc_get_iv_size(st_crypt));
 
             if (mcrypt_generic_init(st_crypt, (void*)hex_hash.c_str(), hex_hash.length(), iv.get()) < 0)
@@ -239,7 +248,7 @@ namespace comm
                 return -1;
             }
 
-            std::shared_ptr<char> buffer(new char[input.length() + 256]);
+            std::shared_ptr<char> buffer(new char[input.length() + 256], [](char *p){delete[] p;});
             memcpy(buffer.get(), input.c_str(), input.length());
             if (mcrypt_generic(st_crypt, buffer.get(), input.length()) != 0)
             {
@@ -263,7 +272,7 @@ namespace comm
             //Crypto::Md5(key, hash);
             std::string hex_hash = Crypto::HexDigest(Crypto::Md5(key));
             
-            std::shared_ptr<char> iv(new char[mcrypt_enc_get_iv_size(st_crypt)]);
+            std::shared_ptr<char> iv(new char[mcrypt_enc_get_iv_size(st_crypt)], [](char *p){delete[] p;});
             memcpy(iv.get(), hex_hash.c_str(), mcrypt_enc_get_iv_size(st_crypt));
 
             if (mcrypt_generic_init(st_crypt, (void*)hex_hash.c_str(), hex_hash.length(), iv.get()) < 0)
@@ -272,7 +281,7 @@ namespace comm
                 return -1;
             }
 
-            std::shared_ptr<char> buffer(new char[input.length() + 256]);
+            std::shared_ptr<char> buffer(new char[input.length() + 256], [](char *p){delete[] p;});
             memcpy(buffer.get(), input.c_str(), input.length());
             if (mdecrypt_generic(st_crypt, buffer.get(), input.length()) != 0)
             {

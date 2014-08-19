@@ -28,6 +28,18 @@ TEST(StringHelper, Split)
     EXPECT_EQ("yyy", sv[2]);
 }
 
+TEST(StringHelper, Join)
+{
+    std::vector<std::string> vec = {"123","abc","$%^"};
+    EXPECT_EQ(comm::library::StringHelper::Join(vec, ','), "123,abc,$%^");
+
+    vec = {"dfg"};
+    EXPECT_EQ(comm::library::StringHelper::Join(vec, ','), "dfg");
+    
+    vec = {};
+    EXPECT_EQ(comm::library::StringHelper::Join(vec, ','), "");
+}
+
 TEST(StringHelper, SplitM)
 {
     std::vector<std::string> sv = comm::library::StringHelper::SplitM(":xx:", ':');
