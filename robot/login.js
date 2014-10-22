@@ -6,6 +6,7 @@ function http_login(name, pass, vcode) {
     var qs = require('querystring');
 
     http.request({
+        //hostname: 'www.999com.com',
         hostname: '10.0.1.27',
         port: 80,
         path: '/index.php?r=user/index',
@@ -40,6 +41,7 @@ function http_login(name, pass, vcode) {
 }
 
 function upload_public_key(user_info){
+    //console.log('-----------------------');
     var uid = user_info.uid;
     var session_id = user_info.session_id;
     var pri_file = 'var/rsa_private_key.pem';
@@ -54,6 +56,7 @@ function upload_public_key(user_info){
         var qs = require('querystring');
 
         http.request({
+            //hostname: 'www.999com.com',
             hostname: '10.0.1.27',
             port: 80,
             path: '/index.php?r=user/rsa/pubkey',
@@ -86,12 +89,37 @@ function upload_public_key(user_info){
     });
 }
 
-function make_msg(mo, md5Key){
-16         $commonArr["session_id"]=self::$sessionId;
- 17         $commonArr["from_where"]=self::$fromWhere;
-  18         $commonArr["uid"]=$uid;
-  for (k in mo){
-      s
+function make_msg(uo, mo){
+    mo.session_id = uo.session_id;
+    mo.from_where = uo.from_where;
+    mo.uid = uo.uid;
+    var smo = sortObject(mo);
+    var k, to_sign='';
+    for (k in smo){
+        to_sign += k + smo[k];
+    }
+    to_sign += uo.md5Key;
+
+    mo.urlsign = md5(to_sign);
+    return JSON.stringify(mo);
+}
+
+function sortObject(o) {
+    var sorted = {},
+    key, a = [];
+
+    for (key in o) {
+        if (o.hasOwnProperty(key)) {
+            a.push(key);
+        }
+    }
+
+    a.sort();
+
+    for (key = 0; key < a.length; key++) {
+        sorted[a[key]] = o[a[key]];
+    }
+    return sorted;
 }
 
 function conn_ws(user_info){
@@ -104,21 +132,38 @@ function conn_ws(user_info){
     user_info.md5Key = key.decrypt(benc).toString();
     var WebSocket = require('ws');
     var ws = new WebSocket('ws://10.0.1.28:7681');
+    var zlib = require('zlib');
     ws.on('open', function (){
         sit = {op:"lobby/game/sitdown",roomId:15};
-        ws.send(JSON.stringify(sit));
+        var msg = make_msg(user_info, sit);
+        ws.send(msg, {binary:false, mask: true}, function(err){
+            if(err){
+                console.log(err);
+            }
+        });
+        //zlib.deflate(msg, function(err, buffer){
+        //    if (err) {
+        //        console.log(err);
+        //    } else {
+        //        ws.send(buffer, {binary:false, mask: true}, function(err){
+        //            if(err){
+        //                console.log(err);
+        //            }
+        //        });
+        //    }
+        //});
     });
     ws.on('close', function (){
         console.log('ws closed');
     });
-    ws.on('message' = function (data, flags) {
+    ws.on('message', function (data, flags) {
         console.log(data, flags);
     });
 }
 
-var crypto = require('crypto');
 function md5 (text) {
-      return crypto.createHash('md5').update(text).digest('hex');
+    var crypto = require('crypto');
+    return crypto.createHash('md5').update(text).digest('hex');
 };
 
-http_login('18682006183','123456');
+http_login('18682006183','123456', 'ttnm');
