@@ -1,0 +1,20 @@
+{
+  "name": "robot",
+  "version": "1.0.0",
+  "description": "robot for texas hold'em",
+  "main": "robot.js",
+  "dependencies": {
+    "crypto": "^0.0.3",
+    "ws": "^0.4.32",
+    "ursa": "^0.8.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "texas"
+  ],
+  "author": "felix",
+  "license": "ISC"
+}
