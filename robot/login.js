@@ -1,3 +1,29 @@
+Object.defineProperty(global, '__stack', {
+    get: function(){
+             var orig = Error.prepareStackTrace;
+             Error.prepareStackTrace = function(_, stack){ return stack; };
+             var err = new Error;
+             Error.captureStackTrace(err, arguments.callee);
+             var stack = err.stack;
+             Error.prepareStackTrace = orig;
+             return stack;
+         }
+});
+
+Object.defineProperty(global, '__line', {
+    get: function(){
+             return __stack[1].getLineNumber();
+         }
+});
+
+function md5 (text) {
+    var crypto = require('crypto');
+    return crypto.createHash('md5').update(text).digest('hex');
+};
+
+//console.log(__line);
+//console.log(__stack);
+
 function get_user_info(user_info, room_info) {
     var http = require('http');
     var qs = require('querystring');
@@ -263,21 +289,6 @@ function upload_public_key(user_info){
     });
 }
 
-function make_msg(uo, mo){
-    mo.session_id = uo.session_id;
-    mo.from_where = 2000;//parseInt(uo.from_where);
-    mo.uid = parseInt(uo.uid);
-    var smo = sortObject(mo);
-    var k, to_sign='';
-    for (k in smo){
-        to_sign += k + smo[k];
-    }
-    to_sign += uo.md5Key;
-
-    mo.urlsign = md5(to_sign);
-    return JSON.stringify(mo);
-}
-
 function sortObject(o) {
     var sorted = {},
     key, a = [];
@@ -294,68 +305,6 @@ function sortObject(o) {
         sorted[a[key]] = o[a[key]];
     }
     return sorted;
-}
-
-function process_msg(user_info, msg){
-    var LC_BROADCAST_ACTION_TYPE_START_GAME = 1; //开局
-    var LC_BROADCAST_ACTION_TYPE_HOLE_CARD = 2; //发底牌
-    var LC_BROADCAST_ACTION_TYPE_FIGHT_CARD = 3; //斗牌
-    var LC_BROADCAST_ACTION_TYPE_FOLD = 4; //弃牌
-    var LC_BROADCAST_ACTION_TYPE_CHECK = 5; //过牌
-    var LC_BROADCAST_ACTION_TYPE_ALLIN = 6; //allin
-    var LC_BROADCAST_ACTION_TYPE_BET = 7; //普通下注
-    var LC_BROADCAST_ACTION_TYPE_CALL = 8; //跟注
-    var LC_BROADCAST_ACTION_TYPE_RAISE = 9; //加注
-    var LC_BROADCAST_ACTION_TYPE_SITDOWN = 10; //坐下
-    var LC_BROADCAST_ACTION_TYPE_STANDUP = 11; //站起
-    var LC_BROADCAST_ACTION_TYPE_INIT_USERGAMEINFO = 12; //初始化用户游戏信息
-    var LC_BROADCAST_ACTION_TYPE_NOTICE_ACTIVE_USER = 13; //通知活动用户
-    var LC_BROADCAST_ACTION_TYPE_NOTICE_SIDE_POT = 14; //通知边池更新
-    var LC_BROADCAST_ACTION_TYPE_NOTICE_NEW_ROUND = 15; //通知开新轮（里面包含新轮公共牌）
-    var LC_BROADCAST_ACTION_TYPE_SMALL_BLIND = 16; //普通小盲下注
-    var LC_BROADCAST_ACTION_TYPE_SMALL_BLIND_ALLIN = 17; //小盲allin下注
-    var LC_BROADCAST_ACTION_TYPE_BIG_BLIND = 18; //普通大盲下注
-    var LC_BROADCAST_ACTION_TYPE_BIG_BLIND_ALLIN = 19; //大盲allin下注
-    var LC_BROADCAST_ACTION_TYPE_PRIZE = 20; //派奖
-    var LC_BROADCAST_ACTION_TYPE_END_BOARD = 21; //牌局结束
-    var LC_BROADCAST_ACTION_TYPE_LEFT_ROOM = 22; //离开房间
-    var LC_BROADCAST_ACTION_TYPE_SNG_RANKING_UPDATE = 23; //sng排名更新
-    var LC_BROADCAST_ACTION_TYPE_SNG_MATCH_PRIZE = 24; //sng比赛派奖
-    var LC_BROADCAST_ACTION_TYPE_SNG_BLIND_UPDATE = 25; //sng大小盲更新
-    var LC_BROADCAST_ACTION_TYPE_SYSTEM_EXCEPTION = 26; //系统异常广播
-    var LC_BROADCAST_ACTION_TYPE_EXCHANGE_CHIP = 27; //成功兑换筹码
-    var LC_BROADCAST_ACTION_TYPE_EMOTICON = 28; //发魔法表情广播
-    var LC_BROADCAST_ACTION_TYPE_CHARACTER = 29;//发聊天文字广播
-    var LC_BROADCAST_ACTION_TYPE_EXCHANGE_CHIP_NOT_BOARD = 30; //成功兑换筹码(不在牌局中)
-    var LC_BROADCAST_ACTION_TYPE_PROMPT = 31;     //牌型提示
-    var LC_BROADCAST_ACTION_TYPE_NO_MONEY_STANDUP = 32;   //牌局结束游戏币不足系统使其站起
-    var LC_BROADCAST_ACTION_TYPE_BOARD_PAY = 33;  //牌局费广播（因为调整到创建牌局的时候扣，该广播已废弃）
-    var LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_CHANGE_DESK = 34; //离开房间(换桌离开)
-    var LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_HOSTING = 35; //离开房间(托管站起导致的离开)
-    var LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_SIT_DOWN_MONITOR = 36; //离开房间(入座超时导致的离开)
-    var LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_STANDUP_MONITOR = 37; //离开房间(站起超时导致的离开)
-    var LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_SNG_MATCH_END = 38; //离开房间(sng比赛结束强制离开)
-    var msg_obj;
-    try{
-        msg_obj = JSON.parse(msg);
-        if (msg_obj.retCode !== 0){
-            console.log('retcode: ' + msg_obj.retCode);
-            console.log(msg);
-            return false;
-        }
-        var action = msg_obj.action.action;
-        if (action == LC_BROADCAST_ACTION_TYPE_EMOTICON ||
-                action == LC_BROADCAST_ACTION_TYPE_CHARACTER){
-            return '';
-        }
-        if (msg_obj.sequence_id === undefined){
-            console.log('no sequence_id');
-            return false;
-        }
-    }catch(e){
-        console.log('exception: ' + e);
-        return false;
-    }
 }
 
 function conn_ws(user_info, room_info){
@@ -387,10 +336,438 @@ function conn_ws(user_info, room_info){
     });
 }
 
-function md5 (text) {
-    var crypto = require('crypto');
-    return crypto.createHash('md5').update(text).digest('hex');
-};
+function msg_maker(user_info)
+{
+    this.user_info = user_info;
+
+    this.make_msg = function (mo){
+        mo.session_id = this.user_info.session_id;
+        mo.from_where = 2000;
+        mo.uid = parseInt(this.user_info.uid);
+        var smo = sortObject(mo);
+        var k, to_sign='';
+        for (k in smo){
+            to_sign += k + smo[k];
+        }
+        to_sign += this.user_info.md5Key;
+
+        mo.urlsign = md5(to_sign);
+        return JSON.stringify(mo);
+    }
+
+    this.sit_down = function(room_id){
+        return this.make_msg({op:"lobby/game/sitdown",roomId:room_id});
+    }
+
+    this.global_game_info = function(){
+        return this.make_msg({op:"lobby/game/getUserGameInfo"});
+    }
+}
+
+function msg_handler(user_info, ws){
+    this.LC_BROADCAST_ACTION_TYPE_START_GAME = 1; //开局
+    this.LC_BROADCAST_ACTION_TYPE_HOLE_CARD = 2; //发底牌
+    this.LC_BROADCAST_ACTION_TYPE_FIGHT_CARD = 3; //斗牌
+    this.LC_BROADCAST_ACTION_TYPE_FOLD = 4; //弃牌
+    this.LC_BROADCAST_ACTION_TYPE_CHECK = 5; //过牌
+    this.LC_BROADCAST_ACTION_TYPE_ALLIN = 6; //allin
+    this.LC_BROADCAST_ACTION_TYPE_BET = 7; //普通下注
+    this.LC_BROADCAST_ACTION_TYPE_CALL = 8; //跟注
+    this.LC_BROADCAST_ACTION_TYPE_RAISE = 9; //加注
+    this.LC_BROADCAST_ACTION_TYPE_SITDOWN = 10; //坐下
+    this.LC_BROADCAST_ACTION_TYPE_STANDUP = 11; //站起
+    this.LC_BROADCAST_ACTION_TYPE_INIT_USERGAMEINFO = 12; //初始化用户游戏信息
+    this.LC_BROADCAST_ACTION_TYPE_NOTICE_ACTIVE_USER = 13; //通知活动用户
+    this.LC_BROADCAST_ACTION_TYPE_NOTICE_SIDE_POT = 14; //通知边池更新
+    this.LC_BROADCAST_ACTION_TYPE_NOTICE_NEW_ROUND = 15; //通知开新轮（里面包含新轮公共牌）
+    this.LC_BROADCAST_ACTION_TYPE_SMALL_BLIND = 16; //普通小盲下注
+    this.LC_BROADCAST_ACTION_TYPE_SMALL_BLIND_ALLIN = 17; //小盲allin下注
+    this.LC_BROADCAST_ACTION_TYPE_BIG_BLIND = 18; //普通大盲下注
+    this.LC_BROADCAST_ACTION_TYPE_BIG_BLIND_ALLIN = 19; //大盲allin下注
+    this.LC_BROADCAST_ACTION_TYPE_PRIZE = 20; //派奖
+    this.LC_BROADCAST_ACTION_TYPE_END_BOARD = 21; //牌局结束
+    this.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM = 22; //离开房间
+    this.LC_BROADCAST_ACTION_TYPE_SNG_RANKING_UPDATE = 23; //sng排名更新
+    this.LC_BROADCAST_ACTION_TYPE_SNG_MATCH_PRIZE = 24; //sng比赛派奖
+    this.LC_BROADCAST_ACTION_TYPE_SNG_BLIND_UPDATE = 25; //sng大小盲更新
+    this.LC_BROADCAST_ACTION_TYPE_SYSTEM_EXCEPTION = 26; //系统异常广播
+    this.LC_BROADCAST_ACTION_TYPE_EXCHANGE_CHIP = 27; //成功兑换筹码
+    this.LC_BROADCAST_ACTION_TYPE_EMOTICON = 28; //发魔法表情广播
+    this.LC_BROADCAST_ACTION_TYPE_CHARACTER = 29;//发聊天文字广播
+    this.LC_BROADCAST_ACTION_TYPE_EXCHANGE_CHIP_NOT_BOARD = 30; //成功兑换筹码(不在牌局中)
+    this.LC_BROADCAST_ACTION_TYPE_PROMPT = 31;     //牌型提示
+    this.LC_BROADCAST_ACTION_TYPE_NO_MONEY_STANDUP = 32;   //牌局结束游戏币不足系统使其站起
+    this.LC_BROADCAST_ACTION_TYPE_BOARD_PAY = 33;  //牌局费广播（因为调整到创建牌局的时候扣，该广播已废弃）
+    this.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_CHANGE_DESK = 34; //离开房间(换桌离开)
+    this.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_HOSTING = 35; //离开房间(托管站起导致的离开)
+    this.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_SIT_DOWN_MONITOR = 36; //离开房间(入座超时导致的离开)
+    this.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_STANDUP_MONITOR = 37; //离开房间(站起超时导致的离开)
+    this.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_SNG_MATCH_END = 38; //离开房间(sng比赛结束强制离开)
+
+    var self = this;
+    this.user_info = user_info;
+    this.maker = new msg_maker(this.user_info);
+    this.sequence_id = 0;
+    this.parse = function (msg){
+        var msg_obj;
+        try{
+            msg_obj = JSON.parse(msg);
+        }catch(e){
+            console.log('exception: ' + e);
+            ws.close();
+        }
+        if (msg_obj.retCode !== 0){
+            console.log('retcode: ' + msg_obj.retCode);
+            console.log(msg);
+            ws.close();
+        }else{
+            if (msg_obj.sequence_id === undefined){
+                console.log('no sequence_id');
+                ws.close();
+            }else{
+                var action = msg_obj.action.action;
+                if(action == this.LC_BROADCAST_ACTION_TYPE_INIT_USERGAMEINFO){
+                    if (msg_obj.sequence_id < this.sequence_id){
+                        console.log('full sequence_id error: ' + msg_obj.sequence_id + ' vs ' + this.sequence_id);
+                        ws.close();
+                    }else{
+                        this.sequence_id = msg_obj.sequence_id;
+                    }
+                }else{//incremently
+                    var req_msg = '';
+                    if (this.sequence_id === 0){
+                        req_msg  = this.global_game_info();
+                    }
+                    else if(msg_obj.sequence_id <= this.sequence_id){
+                        console.log('incremently sequence_id error: ' + msg_obj.sequence_id + ' vs ' + this.sequence_id);
+                        ws.close();
+                    }else if(msg_obj.sequence_id != this.sequence_id + 1){
+                        req_msg  = this.global_game_info();
+                    }else{
+                        switch(action)
+                        {
+                            case this.LC_BROADCAST_ACTION_TYPE_EMOTICON:
+                            case this.LC_BROADCAST_ACTION_TYPE_CHARACTER:
+                                console.log('emotion or chat');
+                                break;
+                            case this.LC_BROADCAST_ACTION_TYPE_SITDOWN:
+                                req_msg = this.resp_sit_down(msg_obj);
+                                break;
+                            case this.LC_BROADCAST_ACTION_TYPE_START_GAME:
+                                req_msg = this.resp_start_game(msg_obj);
+                                break;
+                            case this.LC_BROADCAST_ACTION_TYPE_HOLE_CARD:
+                                req_msg = this.resp_get_holdcard(msg_obj);
+                                break;
+                            case this.LC_BROADCAST_ACTION_TYPE_NOTICE_ACTIVE_USER:
+                                req_msg = this.resp_notify_active_user(msg_obj);
+                                break;
+                            case this.LC_BROADCAST_ACTION_TYPE_FOLD:
+                                req_msg = this.resp_fold(msg_obj);
+                                break;
+                            case this.LC_BROADCAST_ACTION_TYPE_CHECK:
+                                req_msg = this.resp_check(msg_obj);
+                                break;
+                            case this.LC_BROADCAST_ACTION_TYPE_ALLIN:
+                                req_msg = this.resp_allin(msg_obj);
+                                break;
+                            case this.LC_BROADCAST_ACTION_TYPE_CALL:
+                            case this.LC_BROADCAST_ACTION_TYPE_BET:
+                                req_msg = this.resp_bet(msg_obj);
+                                break;
+                            case this.LC_BROADCAST_ACTION_TYPE_RAISE:
+                                req_msg = this.resp_raise(msg_obj);
+                                break;
+                            case this.LC_BROADCAST_ACTION_TYPE_NOTICE_SIDE_POT:
+                                req_msg = this.resp_notify_side_pot(msg_obj);
+                                break;
+                            case this.LC_BROADCAST_ACTION_TYPE_END_BOARD:
+                                req_msg = this.resp_end_board(msg_obj);
+                                break;
+                            case this.LC_BROADCAST_ACTION_TYPE_STANDUP:
+                                req_msg = this.resp_stand_up(msg_obj);
+                                break;
+                            case this.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_CHANGE_DESK:
+                                req_msg = this.resp_change_left(msg_obj);
+                                break;
+                            case this.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM:
+                                req_msg = this.resp_left(msg_obj);
+                                break;
+                            case this.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_SNG_MATCH_END:
+                                req_msg = this.resp_sng_match_end_left(msg_obj);
+                                break;
+                            case this.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_HOSTING:
+                                req_msg = this.resp_host_left(msg_obj);
+                                break;
+                            case this.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_SIT_DOWN_MONITOR:
+                                req_msg = this.resp_monitor_sit_down(msg_obj);
+                                break;
+                            case this.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_STANDUP_MONITOR:
+                                req_msg = this.resp_monitor_stand_up(msg_obj);
+                                break;
+                            case this.LC_BROADCAST_ACTION_TYPE_INIT_USERGAMEINFO:
+                                req_msg = this.resp_global_game_info(msg_obj);
+                                break;
+                            case this.LC_BROADCAST_ACTION_TYPE_EXCHANGE_CHIP:
+                                req_msg = this.resp_buy_chip(msg_obj);
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+
+                    if (req_msg !== ''){
+                        ws.send(req_msg, {binary:false, mask: true}, function(err){
+                            if(err){
+                                console.log("ws send error: " + err);
+                            }
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    this.set_desk = function(desk){
+        var deskArr=msg_obj.inc.desk;;
+        this.dDeskID=deskArr["desk_id"];
+        this.dDeskStatus=deskArr["desk_status"];
+        this.dDeskMaxPerson=deskArr["max_person"];
+        this.dRoomType=deskArr["room_type"];
+    }
+
+    this.set_board = function(board){
+        var boardArr=msg_obj.inc.board;
+        this.dBoardActiveSeatNum=boardArr["active_seat_num"];
+        this.dBoardMaxRoundChip=boardArr["max_round_chip"];
+        this.dBoardRaiseChip=boardArr["raise_chip"];
+        this.dBoardBigBlindSeatNum=boardArr["dealer_seat_num"];
+        this.dBoardBigBlindSeatNum=boardArr["big_blind_seat_num"];
+        this.dBoardSmallBlindSeatNum=boardArr["small_blind_seat_num"];
+        this.dBoardBigBlindChip=boardArr["big_blind_chip"];
+        this.dBoardSmallBlindChip=boardArr["small_blind_chip"];
+        this.dBoardTotalChip=boardArr["total_chip"];
+        this.dBoardRound=boardArr["round"];
+    }
+
+    this.set_players = function(players){
+        this.dPlayerArr=msg_obj.inc.players;
+        this.dPlayerArr.forEach(function(item, index, arr){
+            if (item.uid == self.user_info.uid){
+                this.dUChip=item["chip"];
+                this.dUBetchips=item["betchips"];
+                this.dUserStatus=item["user_status"];
+                if(item["hole_card"] !== undefined){
+                    this.dHoleCardArr=item["hole_card"];
+                }
+            }
+        });
+    }
+
+    this.resp_sit_down = function(msg_obj){
+        if (this.user_info != msg_obj.action.uid){
+            return '';
+        }
+        this.dSeatNum = msg_obj.action.seat_num;
+
+        if (msg_obj.action.broadcast_type == 0)
+        {
+            //入座增量包
+            this.dRoomType=msg_obj.action["room_type"];
+            this.dUserStatus=msg_obj.inc["user_status"];
+            this.dUChip=msg_obj.inc["chip"];
+            this.dUBetchips=msg_obj.inc["betchips"];
+        }
+        else
+        {
+            //入座全量包
+            if (msg_obj.inc.desk != undefined){
+                this.set_desk(msg_obj.inc.desk);
+            }
+
+            if (msg_obj.inc.players != undefined){
+                this.set_players(msg_obj.inc.players);
+            }
+        }
+        return '';
+    };
+
+    this.resp_start_game = function(msg_obj){
+        this.dHoleCardArr=[];
+        this.dBoardPublicCardArr=[];
+        
+        this.dDeskStatus=msg_obj.inc["desk_status"];
+        this.dBoardBigBlindChip=msg_obj.inc["big_blind_chip"];
+        this.dBoardSmallBlindChip=msg_obj.inc["small_blind_chip"];
+        this.dBoardDealerSeatNum=msg_obj.inc["dealer_seat_num"];
+        this.dBoardBigBlindSeatNum=msg_obj.inc["big_blind_seat_num"];
+        this.dBoardSmallBlindSeatNum=msg_obj.inc["small_blind_seat_num"];
+        this.dBoardMaxRoundChip=msg_obj.inc["max_round_chip"];
+        this.dBoardRaiseChip=msg_obj.inc["raise_chip"];
+        msg_obj.inc["players"].forEach(function(item, index, arr){
+            if (item.seat_num == self.dSeatNum){
+                this.dUChip = item.chip;
+                this.dUBetchips = item.betchips;
+            }
+        });
+        return this.maker.global_game_info();
+    };
+
+    this.resp_get_holdcard = function(msg_obj){
+        if(msg_obj.inc["players"][0]["uid"]==this.user_info.uid){
+           this.dHoleCardArr=msg_obj.inc["players"][0]["hole_card"];
+        }
+        return '';
+    };
+
+    this.resp_notify_active_user = function(msg_obj){
+        var token=(msg_obj.action["token"]!==undefined?msg_obj.action["token"]:"");
+        
+        this.dBoardActiveSeatNum=msg_obj.inc["active_seat_num"];
+        this.dBoardRaiseChip=msg_obj.inc["raise_chip"];
+        this.dBoardMaxRoundChip=msg_obj.inc["max_round_chip"];
+
+        if(this.user_info.uid == msg_obj.action["uid"]){
+            //todo
+            //$sendData=GameProcess::getCallBet($this,$token);
+        }
+        return '';
+    };
+
+    this.resp_fold = function(msg_obj){
+        if(this.user_info.uid==msg_obj.action["uid"]){
+            this.dUserStatus=msg_obj.action["user_status"];
+        }
+        return '';
+    };
+
+    this.resp_check = function(msg_obj){
+        if(this.user_info.uid==msg_obj.action["uid"]){
+            this.dUserStatus=msg_obj.action["user_status"];
+        }
+        return '';
+    };
+
+    this.resp_allin = function(msg_obj){
+        if(this.user_info.uid==msg_obj.action["uid"]){
+            this.dUserStatus=msg_obj.action["user_status"];
+            this.dUChip=0;
+            this.dUBetchips=msg_obj.action["betchips"];
+        }
+        this.dBoardTotalChip=msg_obj.action["total_chip"];
+        return '';
+    };
+
+    this.resp_bet = function(msg_obj){
+        if(this.user_info.uid==msg_obj.action["uid"]){
+            this.dUserStatus=msg_obj.action["user_status"];
+            this.dUChip=0;
+            this.dUBetchips=msg_obj.action["betchips"];
+        }
+        this.dBoardTotalChip=msg_obj.action["total_chip"];
+        return '';
+    };
+
+    this.resp_raise = function(msg_obj){
+        if(this.user_info.uid==msg_obj.action["uid"]){
+            this.dUserStatus=msg_obj.action["user_status"];
+            this.dUChip=0;
+            this.dUBetchips=msg_obj.action["betchips"];
+        }
+        this.dBoardTotalChip=msg_obj.action["total_chip"];
+        return '';
+    };
+
+    this.resp_notify_side_pot = function(msg_obj){
+        this.dUBetchips=0;
+        this.dBoardRaiseChip=0;
+        this.dBoardMaxRoundChip=0;
+        return '';
+    };
+    this.resp_end_board = function(msg_obj){
+        msg_obj.inc["players"].forEach(function(item, index, arr){
+            if (item.seat_num == self.dSeatNum){
+                this.dUChip = item.chip;
+            }
+        });
+        if(this.dRoomType==1){
+            //todo
+            //$this->setSendData( GameProcess::endBoard($this,$this->dRoomType) );
+        }   
+        return '';
+    };
+
+    this.resp_stand_up = function(msg_obj){
+        return '';
+    };
+
+    this.resp_change_left = function(msg_obj){
+        if(this.user_info.uid==msg_obj.action["uid"]){
+            this.dSequenceID=0;
+        }
+        return '';
+    };
+
+    this.resp_left = function(msg_obj){
+        if(this.user_info.uid==msg_obj.action["uid"]){
+            this.dSequenceID=0;
+            ws.close();
+        }
+        return '';
+    };
+
+    this.resp_sng_match_end_left = function(msg_obj){
+        return this.resp_host_left();
+    };
+
+    this.resp_host_left = function(msg_obj){
+        if(this.user_info.uid==msg_obj.action["uid"]){
+            this.dSequenceID=0;
+            //todo
+            //this.setSendData(GameProcess::endBoard($this,$this->dRoomId,false));
+        }
+        return '';
+    };
+
+    this.resp_monitor_sit_down = function(msg_obj){
+        return this.resp_host_left();
+    };
+
+    this.resp_monitor_stand_up = function(msg_obj){
+        return this.resp_host_left();
+    };
+
+    this.resp_global_game_info = function(msg_obj){
+        if (msg_obj.uid != this.user_info.uid){
+            return '';
+        }
+        this.dSeatNum = msg_obj.action.seat_num;
+        if(msg_obj.inc.desk !== undefined)){
+            this.set_desk(msg_obj.inc.desk);
+        }
+        if(msg_obj.inc.board !== undefined)){
+            this.set_board(msg_obj.inc.board);
+        }
+        if(msg_obj.inc.players !== undefined){
+            this.set_players(msg_obj.inc.players);
+        }
+        return '';
+    };
+
+    this.resp_buy_chip = function(msg_obj){
+        if(msg_obj.inc["seat_num"]==this.dSeatNum){
+            this.dUChip=msg_obj.inc["chip"];
+        }
+        return '';
+    };
+
+    this.global_game_info = function(){
+        return this.maker.global_game_info();
+    };
+}
+
+var p = new msg_handler({});
+console.error(p);
 
 //console.log(md5('from_where2000lua_version1.0.0.0rlobby/game/getsngroomlistsession_idfg7gv9puaqsb69nh15k6k6tkr3uid149version124uaxu3sgrk1ltxlt41kgvkfylyq0mc2'));
-http_login('18682006183',md5('123456'), 'ttnm');
+//http_login('18682006183',md5('123456'), 'ttnm');
