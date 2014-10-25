@@ -355,6 +355,22 @@ function msg_maker(user_info)
         return JSON.stringify(mo);
     }
 
+    this.bet = function(chip){
+        return this.make_msg({op:"lobby/game/callbet", chip:chip, action:1});
+    }
+
+    this.fold = function(){
+        return this.make_msg({op:"lobby/game/callbet", chip:0, action:2});
+    }
+
+    this.change_desk = function(){
+        return this.make_msg({op:"lobby/game/changedesk"});
+    }
+
+    this.left = function(){
+        return this.make_msg({op:"lobby/game/left"});
+    }
+
     this.sit_down = function(room_id){
         return this.make_msg({op:"lobby/game/sitdown",roomId:room_id});
     }
@@ -517,15 +533,18 @@ function msg_handler(user_info, ws){
                     }
 
                     if (req_msg !== ''){
-                        ws.send(req_msg, {binary:false, mask: true}, function(err){
-                            if(err){
-                                console.log("ws send error: " + err);
-                            }
-                        });
                     }
                 }
             }
         }
+    }
+
+    this.send_msg = function(msg){
+        ws.send(req_msg, {binary:false, mask: true}, function(err){
+            if(err){
+                console.log("ws send error: " + err);
+            }
+        });
     }
 
     this.set_desk = function(desk){
@@ -620,16 +639,75 @@ function msg_handler(user_info, ws){
         return '';
     };
 
+    this.check = function(){
+        return this.maker.bet(0);
+    }
+
+    this.fold = function(){
+        return this.maker.fold();
+    }
+
+    this.raise = function(){
+        var rand_chip = parseInt(1+9*Math.random())*this.dBoardBigBlindChip;
+        var chip;
+        if(this.dBoardRaiseChip == 0){
+            if(this.dBoardMaxRoundChip<=this.dBoardBigBlindChip){
+                chip = this.dBoardBigBlindChip-this.dUBetchips+this.dBoardBigBlindChip+rand_chip;
+            }else if(this.dBoardMaxRoundChip > this.dBoardBigBlindChip){
+                chip = this.dBoardMaxRoundChip-this.dUBetchips+this.dBoardBigBlindChip+rand_chip;
+            }
+        }else{
+            chip = this.dBoardMaxRoundChip-this.dUBetchips+this.dBoardRaiseChip+rand_chip;
+        }
+
+        if(chip>this.dUChip){
+            chip=this.dUChip;
+        }
+        return this.maker.bet(chip);
+    }
+
+    this.call = function(){
+        var chip = 0;
+        if (this.dBoardMaxRoundChip > this.dBoardBigBlindChip){
+            chip = this.dBoardMaxRoundChip - this.dUBetchips;
+        }else{
+            chip = this.dBoardBigBlindChip - this.dUBetchips;
+        }
+        if (chip > this.dUChip){
+            chip = this.dUChip;
+        }
+        return this.maker.bet(chip);
+    }
+
+    this.think = function(){
+        var r = Math.random();
+        if(r<0.4){
+            if (this.dBoardMaxRoundChip > 0){
+                return this.call();
+            }else{
+                return this.check();
+            }
+        }else if(r<0.6){
+            this.call();
+        }else if(r<0.95){
+            if (this.dBoardMaxRoundChip > 0){
+                return this.fold();
+            }else{
+                return this.check();
+            }
+        }else{
+            return this.raise();
+        }
+    }
+
     this.resp_notify_active_user = function(msg_obj){
-        var token=(msg_obj.action["token"]!==undefined?msg_obj.action["token"]:"");
         
         this.dBoardActiveSeatNum=msg_obj.inc["active_seat_num"];
         this.dBoardRaiseChip=msg_obj.inc["raise_chip"];
         this.dBoardMaxRoundChip=msg_obj.inc["max_round_chip"];
 
         if(this.user_info.uid == msg_obj.action["uid"]){
-            //todo
-            //$sendData=GameProcess::getCallBet($this,$token);
+            return this.think();
         }
         return '';
     };
@@ -684,17 +762,29 @@ function msg_handler(user_info, ws){
         this.dBoardMaxRoundChip=0;
         return '';
     };
+
+    this.end_board = function(){
+        var d = new Date();
+        var ts = (d.getTime()-d.getMilliseconds())/1000;
+        if (ts > this.sevice_end_time){
+            return this.maker.left();
+        }else{
+            if (this.dRoomType == 1){
+                if (Math.random()<0.1){
+                    return this.maker.change_desk();
+                }
+                return '';
+            }
+            return this.maker.sit_down(this.dRoomId);
+        }
+    }
     this.resp_end_board = function(msg_obj){
         msg_obj.inc["players"].forEach(function(item, index, arr){
             if (item.seat_num == self.dSeatNum){
                 this.dUChip = item.chip;
             }
         });
-        if(this.dRoomType==1){
-            //todo
-            //$this->setSendData( GameProcess::endBoard($this,$this->dRoomType) );
-        }   
-        return '';
+        return this.end_board();
     };
 
     this.resp_stand_up = function(msg_obj){
@@ -723,8 +813,7 @@ function msg_handler(user_info, ws){
     this.resp_host_left = function(msg_obj){
         if(this.user_info.uid==msg_obj.action["uid"]){
             this.dSequenceID=0;
-            //todo
-            //this.setSendData(GameProcess::endBoard($this,$this->dRoomId,false));
+            return this.end_board();
         }
         return '';
     };
@@ -766,8 +855,5 @@ function msg_handler(user_info, ws){
     };
 }
 
-var p = new msg_handler({});
-console.error(p);
 
-//console.log(md5('from_where2000lua_version1.0.0.0rlobby/game/getsngroomlistsession_idfg7gv9puaqsb69nh15k6k6tkr3uid149version124uaxu3sgrk1ltxlt41kgvkfylyq0mc2'));
-//http_login('18682006183',md5('123456'), 'ttnm');
+http_login('18682006183',md5('123456'), 'ttnm');
