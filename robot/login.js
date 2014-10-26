@@ -39,7 +39,7 @@ function get_user_info(user_info, room_info) {
         c: 'userinfo',
         op: 'info',
     };
-    
+
     var sparams = sortObject(params);
     var k, to_sign='';
     for (k in sparams){
@@ -65,6 +65,7 @@ function get_user_info(user_info, room_info) {
                 var my_info = JSON.parse(body);
                 var retcode = my_info.retcode;
                 if (retcode === 0){
+                    //console.log(my_info.game_money);
                     user_info.game_money = my_info.game_money;
                     conn_ws(user_info, room_info);
                 }
@@ -94,7 +95,7 @@ function get_roominfo(user_info, sng, ret_room) {
         from_where : 2000,
         r: (sng === true? sng_path : normal_path),
     };
-    
+
     var sparams = sortObject(params);
     var k, to_sign='';
     for (k in sparams){
@@ -212,7 +213,7 @@ function http_login(name, pass, vcode) {
                     upload_public_key(uo);
                 }
             }catch(e){
-                consolo.log('exception: ' + e);
+                console.log('exception: ' + e);
             }
         });
     }).on('error', function(e) {
@@ -291,7 +292,7 @@ function upload_public_key(user_info){
 
 function sortObject(o) {
     var sorted = {},
-    key, a = [];
+        key, a = [];
 
     for (key in o) {
         if (o.hasOwnProperty(key)) {
@@ -307,33 +308,16 @@ function sortObject(o) {
     return sorted;
 }
 
-function conn_ws(user_info, room_info){
-    //var room_id = parseInt(room_info.normal['1']['2'][2].id);
-    console.log(user_info, room_info, room_info.length);
-    return 0;
-    var room_id = 35;
-    var WebSocket = require('ws');
-    //var ws = new WebSocket('ws://10.0.1.28:7681');
-    var ws = new WebSocket('ws://ws.999com.com:17681');
-    var zlib = require('zlib');
-    ws.on('open', function (){
-        sit = {op:"lobby/game/sitdown",roomId:room_id};
-        var msg = make_msg(user_info, sit);
-        console.log("send: " + msg);
-        ws.send(msg, {binary:false, mask: true}, function(err){
-            if(err){
-                console.log("ws send error: " + err);
-            }
-        });
+function choose_room(user_info, room_info){
+    //console.log(room_info,user_info);
+    var rooms = room_info.filter(function(item, index, arr){
+        //console.log(item.match, user_info.game_money, item.min_chip);
+        return item.match != 'sng' && item.min_chip<10000;
     });
-    ws.on('close', function (){
-        console.log('ws closed');
-    });
-    ws.on('message', function (data, flags) {
-        console.log("recv: " + data);
-        process_msg(user_info, data);
-        //console.log("ws recv data flag: ", flags);
-    });
+    //console.log(rooms);
+    var item = rooms[Math.floor(Math.random()*rooms.length)];
+    //console.log(item);
+    return item;
 }
 
 function msg_maker(user_info)
@@ -356,11 +340,11 @@ function msg_maker(user_info)
     }
 
     this.bet = function(chip){
-        return this.make_msg({op:"lobby/game/callbet", chip:chip, action:1});
+        return this.make_msg({op:"lobby/game/callbet", 'chip':chip, action:1});
     }
 
     this.fold = function(){
-        return this.make_msg({op:"lobby/game/callbet", chip:0, action:2});
+        return this.make_msg({op:"lobby/game/callbet", 'chip':0, action:2});
     }
 
     this.change_desk = function(){
@@ -421,6 +405,8 @@ function msg_handler(user_info, ws){
     this.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_SNG_MATCH_END = 38; //离开房间(sng比赛结束强制离开)
 
     var self = this;
+    var fd=new Date('2015-01-01');
+    this.service_end_time = parseInt(fd.getTime()/1000);
     this.user_info = user_info;
     this.maker = new msg_maker(this.user_info);
     this.sequence_id = 0;
@@ -432,9 +418,11 @@ function msg_handler(user_info, ws){
             console.log('exception: ' + e);
             ws.close();
         }
+        //console.log(JSON.stringify(msg_obj, null, 2));
+        //console.log(this.sequence_id + " vs "  +msg_obj.sequence_id, this.dUBetchips);
+        console.log("action: "+msg_obj.action.action);
         if (msg_obj.retCode !== 0){
             console.log('retcode: ' + msg_obj.retCode);
-            console.log(msg);
             ws.close();
         }else{
             if (msg_obj.sequence_id === undefined){
@@ -442,24 +430,31 @@ function msg_handler(user_info, ws){
                 ws.close();
             }else{
                 var action = msg_obj.action.action;
+                var req_msg = '';
                 if(action == this.LC_BROADCAST_ACTION_TYPE_INIT_USERGAMEINFO){
-                    if (msg_obj.sequence_id < this.sequence_id){
+                    if (parseInt(msg_obj.sequence_id) < parseInt(this.sequence_id)){
                         console.log('full sequence_id error: ' + msg_obj.sequence_id + ' vs ' + this.sequence_id);
                         ws.close();
                     }else{
-                        this.sequence_id = msg_obj.sequence_id;
+                        this.sequence_id = parseInt(msg_obj.sequence_id);
+                        req_msg = this.resp_global_game_info(msg_obj);
                     }
                 }else{//incremently
-                    var req_msg = '';
                     if (this.sequence_id === 0){
+                        //console.log(__line);
                         req_msg  = this.global_game_info();
-                    }
-                    else if(msg_obj.sequence_id <= this.sequence_id){
+                    }else if(parseInt(msg_obj.sequence_id) <= parseInt(this.sequence_id)){
+                        //console.log(__line);
                         console.log('incremently sequence_id error: ' + msg_obj.sequence_id + ' vs ' + this.sequence_id);
                         ws.close();
-                    }else if(msg_obj.sequence_id != this.sequence_id + 1){
+                    }else if(parseInt(msg_obj.sequence_id) > parseInt(this.sequence_id) + 1){
+                        //console.log(msg_obj.sequence_id, " vvss ", parseInt(this.sequence_id) + 1, parseInt(msg_obj.sequence_id) > parseInt(this.sequence_id) + 1);
+                        //console.log(__line);
                         req_msg  = this.global_game_info();
                     }else{
+                        //console.log(__line);
+                        this.sequence_id = parseInt(msg_obj.sequence_id);
+                        //console.log("this.sequence_id updated: " + this.sequence_id);
                         switch(action)
                         {
                             case this.LC_BROADCAST_ACTION_TYPE_EMOTICON:
@@ -498,6 +493,7 @@ function msg_handler(user_info, ws){
                                 req_msg = this.resp_notify_side_pot(msg_obj);
                                 break;
                             case this.LC_BROADCAST_ACTION_TYPE_END_BOARD:
+                                //console.log('------------'+this.service_end_time);
                                 req_msg = this.resp_end_board(msg_obj);
                                 break;
                             case this.LC_BROADCAST_ACTION_TYPE_STANDUP:
@@ -531,24 +527,46 @@ function msg_handler(user_info, ws){
                                 break;
                         }
                     }
-
-                    if (req_msg !== ''){
+                }
+                if (req_msg !== ''){
+                    var sleep = 0;
+                    if (action == this.LC_BROADCAST_ACTION_TYPE_NOTICE_ACTIVE_USER){
+                        var r = Math.random();
+                        if(r<0.1){
+                            sleep = 1;
+                        }else if(r<0.45){
+                            sleep = 3;
+                        }else if(r<0.85){
+                            sleep = 5;
+                        }else if(r<0.95){
+                            sleep = 7;
+                        }else{
+                            sleep = 8;
+                        }
                     }
+                    setTimeout(this.send_msg, sleep*1000, req_msg);
                 }
             }
         }
     }
 
     this.send_msg = function(msg){
-        ws.send(req_msg, {binary:false, mask: true}, function(err){
+        if (!msg){
+            console.log(__line, "error msg: " + msg);
+            return false;
+        }
+        //console.log('send :' + JSON.stringify(JSON.parse(msg), null, 2));
+        console.log('send :' + msg);
+        ws.send(msg, {binary:false, mask: true}, function(err){
             if(err){
                 console.log("ws send error: " + err);
+                ws.close();
             }
         });
     }
 
     this.set_desk = function(desk){
-        var deskArr=msg_obj.inc.desk;;
+        var deskArr=desk;;
         this.dDeskID=deskArr["desk_id"];
         this.dDeskStatus=deskArr["desk_status"];
         this.dDeskMaxPerson=deskArr["max_person"];
@@ -556,7 +574,7 @@ function msg_handler(user_info, ws){
     }
 
     this.set_board = function(board){
-        var boardArr=msg_obj.inc.board;
+        var boardArr=board;
         this.dBoardActiveSeatNum=boardArr["active_seat_num"];
         this.dBoardMaxRoundChip=boardArr["max_round_chip"];
         this.dBoardRaiseChip=boardArr["raise_chip"];
@@ -570,17 +588,23 @@ function msg_handler(user_info, ws){
     }
 
     this.set_players = function(players){
-        this.dPlayerArr=msg_obj.inc.players;
+        this.dPlayerArr=players;
+        //console.log(__line);
+        //console.log(JSON.stringify(players, null, 2));
         this.dPlayerArr.forEach(function(item, index, arr){
+            //console.log(__line);
+            //console.log(item.uid,self.user_info.uid,self.dUBetchips);
             if (item.uid == self.user_info.uid){
-                this.dUChip=item["chip"];
-                this.dUBetchips=item["betchips"];
-                this.dUserStatus=item["user_status"];
+                self.dUChip=item["chip"];
+                self.dUBetchips=item["betchips"];
+                self.dUserStatus=item["user_status"];
                 if(item["hole_card"] !== undefined){
-                    this.dHoleCardArr=item["hole_card"];
+                    self.dHoleCardArr=item["hole_card"];
                 }
             }
         });
+        //console.log(__line);
+        //console.log(this.dUBetchips);
     }
 
     this.resp_sit_down = function(msg_obj){
@@ -588,6 +612,7 @@ function msg_handler(user_info, ws){
             return '';
         }
         this.dSeatNum = msg_obj.action.seat_num;
+        //console.log(__line, JSON.stringify(msg_obj, null, 2));
 
         if (msg_obj.action.broadcast_type == 0)
         {
@@ -614,7 +639,8 @@ function msg_handler(user_info, ws){
     this.resp_start_game = function(msg_obj){
         this.dHoleCardArr=[];
         this.dBoardPublicCardArr=[];
-        
+
+        //console.log(__line, JSON.stringify(msg_obj, null, 2));
         this.dDeskStatus=msg_obj.inc["desk_status"];
         this.dBoardBigBlindChip=msg_obj.inc["big_blind_chip"];
         this.dBoardSmallBlindChip=msg_obj.inc["small_blind_chip"];
@@ -625,8 +651,8 @@ function msg_handler(user_info, ws){
         this.dBoardRaiseChip=msg_obj.inc["raise_chip"];
         msg_obj.inc["players"].forEach(function(item, index, arr){
             if (item.seat_num == self.dSeatNum){
-                this.dUChip = item.chip;
-                this.dUBetchips = item.betchips;
+                self.dUChip = item.chip;
+                self.dUBetchips = item.betchips;
             }
         });
         return this.maker.global_game_info();
@@ -634,22 +660,25 @@ function msg_handler(user_info, ws){
 
     this.resp_get_holdcard = function(msg_obj){
         if(msg_obj.inc["players"][0]["uid"]==this.user_info.uid){
-           this.dHoleCardArr=msg_obj.inc["players"][0]["hole_card"];
+            this.dHoleCardArr=msg_obj.inc["players"][0]["hole_card"];
         }
         return '';
     };
 
     this.check = function(){
+        //console.log(__line);
         return this.maker.bet(0);
     }
 
     this.fold = function(){
+        //console.log(__line);
         return this.maker.fold();
     }
 
     this.raise = function(){
+        //console.log(__line);
         var rand_chip = parseInt(1+9*Math.random())*this.dBoardBigBlindChip;
-        var chip;
+        var chip = 0;
         if(this.dBoardRaiseChip == 0){
             if(this.dBoardMaxRoundChip<=this.dBoardBigBlindChip){
                 chip = this.dBoardBigBlindChip-this.dUBetchips+this.dBoardBigBlindChip+rand_chip;
@@ -667,6 +696,8 @@ function msg_handler(user_info, ws){
     }
 
     this.call = function(){
+        //console.log(__line);
+        //console.log(__line, this.dBoardBigBlindChip, this.dBoardRaiseChip, this.dBoardMaxRoundChip, this.dUBetchips, this.dUChip);
         var chip = 0;
         if (this.dBoardMaxRoundChip > this.dBoardBigBlindChip){
             chip = this.dBoardMaxRoundChip - this.dUBetchips;
@@ -676,6 +707,7 @@ function msg_handler(user_info, ws){
         if (chip > this.dUChip){
             chip = this.dUChip;
         }
+        //console.log(__line, chip);
         return this.maker.bet(chip);
     }
 
@@ -685,14 +717,16 @@ function msg_handler(user_info, ws){
             if (this.dBoardMaxRoundChip > 0){
                 return this.call();
             }else{
+                //console.log(__line);
                 return this.check();
             }
         }else if(r<0.6){
-            this.call();
+            return this.call();
         }else if(r<0.95){
             if (this.dBoardMaxRoundChip > 0){
                 return this.fold();
             }else{
+                //console.log(__line);
                 return this.check();
             }
         }else{
@@ -701,7 +735,8 @@ function msg_handler(user_info, ws){
     }
 
     this.resp_notify_active_user = function(msg_obj){
-        
+        //console.log(JSON.stringify(msg_obj, null, 2));
+
         this.dBoardActiveSeatNum=msg_obj.inc["active_seat_num"];
         this.dBoardRaiseChip=msg_obj.inc["raise_chip"];
         this.dBoardMaxRoundChip=msg_obj.inc["max_round_chip"];
@@ -727,6 +762,7 @@ function msg_handler(user_info, ws){
     };
 
     this.resp_allin = function(msg_obj){
+        //console.log(__line, JSON.stringify(msg_obj, null, 2));
         if(this.user_info.uid==msg_obj.action["uid"]){
             this.dUserStatus=msg_obj.action["user_status"];
             this.dUChip=0;
@@ -737,9 +773,10 @@ function msg_handler(user_info, ws){
     };
 
     this.resp_bet = function(msg_obj){
+        //console.log(__line, JSON.stringify(msg_obj, null, 2));
         if(this.user_info.uid==msg_obj.action["uid"]){
             this.dUserStatus=msg_obj.action["user_status"];
-            this.dUChip=0;
+            this.dUChip=msg_obj.action["chip"];
             this.dUBetchips=msg_obj.action["betchips"];
         }
         this.dBoardTotalChip=msg_obj.action["total_chip"];
@@ -747,9 +784,10 @@ function msg_handler(user_info, ws){
     };
 
     this.resp_raise = function(msg_obj){
+        //console.log(__line, JSON.stringify(msg_obj, null, 2));
         if(this.user_info.uid==msg_obj.action["uid"]){
             this.dUserStatus=msg_obj.action["user_status"];
-            this.dUChip=0;
+            this.dUChip=msg_obj.action["chip"];
             this.dUBetchips=msg_obj.action["betchips"];
         }
         this.dBoardTotalChip=msg_obj.action["total_chip"];
@@ -757,6 +795,7 @@ function msg_handler(user_info, ws){
     };
 
     this.resp_notify_side_pot = function(msg_obj){
+        //console.log(__line, JSON.stringify(msg_obj, null, 2));
         this.dUBetchips=0;
         this.dBoardRaiseChip=0;
         this.dBoardMaxRoundChip=0;
@@ -766,24 +805,29 @@ function msg_handler(user_info, ws){
     this.end_board = function(){
         var d = new Date();
         var ts = (d.getTime()-d.getMilliseconds())/1000;
-        if (ts > this.sevice_end_time){
+        if (ts > this.service_end_time){
+            //console.log('------------------left');
             return this.maker.left();
         }else{
             if (this.dRoomType == 1){
-                if (Math.random()<0.1){
-                    return this.maker.change_desk();
-                }
+                //if (Math.random()<0.1){
+                //    return this.maker.change_desk();
+                //}
                 return '';
             }
+            //console.log('------------------sit_down');
             return this.maker.sit_down(this.dRoomId);
         }
     }
+
     this.resp_end_board = function(msg_obj){
-        msg_obj.inc["players"].forEach(function(item, index, arr){
-            if (item.seat_num == self.dSeatNum){
-                this.dUChip = item.chip;
-            }
-        });
+        if (msg_obj.inc["players"] !== undefined){
+            msg_obj.inc["players"].forEach(function(item, index, arr){
+                if (item.seat_num == self.dSeatNum){
+                    self.dUChip = item.chip;
+                }
+            });
+        }
         return this.end_board();
     };
 
@@ -827,14 +871,15 @@ function msg_handler(user_info, ws){
     };
 
     this.resp_global_game_info = function(msg_obj){
-        if (msg_obj.uid != this.user_info.uid){
+        if (msg_obj.action.uid != this.user_info.uid){
             return '';
         }
         this.dSeatNum = msg_obj.action.seat_num;
-        if(msg_obj.inc.desk !== undefined)){
+        if(msg_obj.inc.desk !== undefined){
             this.set_desk(msg_obj.inc.desk);
         }
-        if(msg_obj.inc.board !== undefined)){
+        if(msg_obj.inc.board !== undefined){
+            //console.log(JSON.stringify(msg_obj.inc.board, null, 2));
             this.set_board(msg_obj.inc.board);
         }
         if(msg_obj.inc.players !== undefined){
@@ -855,5 +900,38 @@ function msg_handler(user_info, ws){
     };
 }
 
+function conn_ws(user_info, room_info){
+    var room = choose_room(user_info, room_info);
+    //console.log(room,user_info);
+    //console.log(room.min_chip,user_info.game_money);
+    var room_id = room.id;
+    var WebSocket = require('ws');
+    //var ws = new WebSocket('ws://10.0.1.28:7681');
+    var ws = new WebSocket('ws://ws.999com.com:17681');
+    var zlib = require('zlib');
+    var maker = new msg_maker(user_info);
+    var handler = new msg_handler(user_info, ws);
+    ws.on('open', function (){
+        //sit = {op:"lobby/game/sitdown",roomId:room_id};
+        var msg = maker.sit_down(room_id);
+        console.log('send :' + msg);
+        //console.log("send: " + JSON.stringify(JSON.parse(msg), null, 2));
+        ws.send(msg, {binary:false, mask: true}, function(err){
+            if(err){
+                console.log("ws send error: " + err);
+                ws.close();
+            }
+        });
+    });
+    ws.on('close', function (){
+        console.log('ws closed');
+    });
+    ws.on('message', function (data, flags) {
+        //console.log("recv: " + JSON.stringify(JSON.parse(data), null, 2));
+        //process_msg(user_info, data);
+        handler.parse(data);
+        //console.log("ws recv data flag: ", flags);
+    });
+}
 
-http_login('18682006183',md5('123456'), 'ttnm');
+http_login('18682006183', md5('123456'), 'ttnm');
