@@ -420,6 +420,7 @@ function msg_handler(user_info, ws){
         }
         //console.log(JSON.stringify(msg_obj, null, 2));
         //console.log(this.sequence_id + " vs "  +msg_obj.sequence_id, this.dUBetchips);
+        console.log(__line, this.dBoardBigBlindChip, this.dBoardRaiseChip, this.dBoardMaxRoundChip, this.dUBetchips, this.dUChip);
         console.log("action: "+msg_obj.action.action);
         if (msg_obj.retCode !== 0){
             console.log('retcode: ' + msg_obj.retCode);
@@ -766,9 +767,9 @@ function msg_handler(user_info, ws){
         if(this.user_info.uid==msg_obj.action["uid"]){
             this.dUserStatus=msg_obj.action["user_status"];
             this.dUChip=0;
-            this.dUBetchips=msg_obj.action["betchips"];
+            this.dUBetchips=msg_obj.inc["betchips"];
         }
-        this.dBoardTotalChip=msg_obj.action["total_chip"];
+        this.dBoardTotalChip=msg_obj.inc["total_chip"];
         return '';
     };
 
@@ -776,10 +777,10 @@ function msg_handler(user_info, ws){
         //console.log(__line, JSON.stringify(msg_obj, null, 2));
         if(this.user_info.uid==msg_obj.action["uid"]){
             this.dUserStatus=msg_obj.action["user_status"];
-            this.dUChip=msg_obj.action["chip"];
-            this.dUBetchips=msg_obj.action["betchips"];
+            this.dUChip=msg_obj.inc["chip"];
+            this.dUBetchips=msg_obj.inc["betchips"];
         }
-        this.dBoardTotalChip=msg_obj.action["total_chip"];
+        this.dBoardTotalChip=msg_obj.inc["total_chip"];
         return '';
     };
 
@@ -787,10 +788,10 @@ function msg_handler(user_info, ws){
         //console.log(__line, JSON.stringify(msg_obj, null, 2));
         if(this.user_info.uid==msg_obj.action["uid"]){
             this.dUserStatus=msg_obj.action["user_status"];
-            this.dUChip=msg_obj.action["chip"];
-            this.dUBetchips=msg_obj.action["betchips"];
+            this.dUChip=msg_obj.inc["chip"];
+            this.dUBetchips=msg_obj.inc["betchips"];
         }
-        this.dBoardTotalChip=msg_obj.action["total_chip"];
+        this.dBoardTotalChip=msg_obj.inc["total_chip"];
         return '';
     };
 
@@ -851,7 +852,7 @@ function msg_handler(user_info, ws){
     };
 
     this.resp_sng_match_end_left = function(msg_obj){
-        return this.resp_host_left();
+        return this.resp_host_left(msg_obj);
     };
 
     this.resp_host_left = function(msg_obj){
@@ -863,11 +864,11 @@ function msg_handler(user_info, ws){
     };
 
     this.resp_monitor_sit_down = function(msg_obj){
-        return this.resp_host_left();
+        return this.resp_host_left(msg_obj);
     };
 
     this.resp_monitor_stand_up = function(msg_obj){
-        return this.resp_host_left();
+        return this.resp_host_left(msg_obj);
     };
 
     this.resp_global_game_info = function(msg_obj){
