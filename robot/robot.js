@@ -1,15 +1,24 @@
 function main(){
     var u = require('./utility');
     var hl= require('./http_login');
-    var loginer = new hl('release');
 
+    var setting = {tour:false};
+    setting.env = process.argv[2];
+    setting.name = process.argv[3];
+    setting.pass = process.argv[4];
+    if (process.argv.length > 5 && process.argv[5] == 'tour'){
+        setting.tour = true;
+    }
     var robot_start = function(user_info,room_info){
         var ws_player = require('./ws_player');
-        var player = new ws_player('release', user_info, room_info);
+        //console.log(JSON.stringify(user_info, null, 2));
+        //console.log(JSON.stringify(room_info, null, 2));
+        var player = new ws_player(setting, user_info, room_info);
         player.play();
     }
 
-    loginer.login('18682006183', u.md5('123456'), '', robot_start);
+    var loginer = new hl(setting);
+    loginer.login(setting.name, u.md5(setting.pass), '', robot_start);
 }
 
 main();

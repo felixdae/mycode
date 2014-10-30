@@ -1,14 +1,15 @@
 module.exports = http_login;
 
-function http_login(env){
+function http_login(setting){
     var self = this;
 
+    self.setting = setting;
     self.http_hostname = '10.0.1.27';
     self.http_port = 80;
     self.from_where = 2000;
-    if (env == 'test'){
+    if (setting.env == 'test'){
         self.http_hostname = '10.0.1.23';
-    }else if(env == 'release'){
+    }else if(setting.env == 'release'){
         self.http_hostname = 'www.999com.com';
     }
 
@@ -61,6 +62,7 @@ function http_login(env){
             resp_obj = JSON.parse(response);
         }catch(e){
             console.log('exception: ' + e);
+            console.log(response);
             return false;
         }
         var retcode = (resp_obj.retcode===undefined? resp_obj.retCode:resp_obj.retcode);

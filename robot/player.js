@@ -103,10 +103,13 @@ function msg_handler(user_info, ws){
             console.log('exception: ' + e);
             ws.close();
         }
-        //console.log(JSON.stringify(msg_obj, null, 2));
+        console.log(JSON.stringify(msg_obj));
         //console.log(self.sequence_id + " vs "  +msg_obj.sequence_id);
-        console.log(__LINE__, self.dBoardBigBlindChip, self.dBoardRaiseChip, self.dBoardMaxRoundChip, self.dUBetchips, self.dUChip);
-        console.log("action: "+msg_obj.action.action);
+        console.log("\nuid: " + self.user_info.uid + "\nleft chip: " + self.dUChip +
+                "\nboard id: " + self.dBoardID + "\ndesk id: " + self.dDeskID);
+        console.log("big blind: " + self.dBoardBigBlindChip + "\nboard raise chip: " + self.dBoardRaiseChip +
+                "\nmax round chip: " + self.dBoardMaxRoundChip + "\nlast bet chip:" + self.dUBetchips);
+        console.log("msg action: " + msg_obj.action.action);
         if (msg_obj.retCode !== 0){
             console.log('retcode: ' + msg_obj.retCode);
             ws.close();
@@ -253,6 +256,7 @@ function msg_handler(user_info, ws){
 
     self.set_desk = function(desk){
         var deskArr=desk;;
+        self.dBoardID=deskArr["board_id"];
         self.dDeskID=deskArr["desk_id"];
         self.dDeskStatus=deskArr["desk_status"];
         self.dDeskMaxPerson=deskArr["max_person"];
