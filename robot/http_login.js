@@ -21,6 +21,10 @@ function http_login(setting){
     self.upload_key_done = false;
     self.get_sng_room_info_done = false;
     self.get_normal_room_info_done = false;
+    if (self.setting.champion){
+        self.get_sng_room_info_done = true;
+        self.get_normal_room_info_done = true;
+    }
     self.get_user_info_done = false;
 
     self.pub_file = './var/rsa_public_key.pem';
@@ -70,6 +74,7 @@ function http_login(setting){
             console.log('error response: ' + response);
             return false;
         }
+        console.log(doing,__LINE__);
         if (doing == 1){//login
             //console.log('--------------',resp_obj.game_money);
             self.user_info = resp_obj;
@@ -85,8 +90,21 @@ function http_login(setting){
         }else if(doing == 2){
             self.user_info.md5key = self.rsa_decipher(resp_obj.md5Key);
             self.upload_key_done = true;
-            self.get_room_info();
+            console.log(self.user_info.md5key,self.setting.champion);
             self.get_user_info();
+            if (self.setting.champion != true){
+                console.log(__LINE__);
+                self.get_room_info();
+            } else {
+                if (self.get_user_info_done
+                        && self.get_normal_room_info_done
+                        && self.get_sng_room_info_done){
+                    //console.log(JSON.stringify(self.user_info,null,2));
+                    //console.log(JSON.stringify(self.room_info,null,2));
+                    self.login_success(self.user_info, self.room_info);
+                    //console.log('http all done');
+                }
+            }
         }else if(doing == 3||doing == 4||doing == 5){
             if (doing == 3){
                 self.get_sng_room_info_done = true;
@@ -251,6 +269,7 @@ function http_login(setting){
             op: 'info',
         };
         params.urlsign = self.make_urlsign(params, self.user_info.md5key);
+        console.log(__LINE__);
         self.comm_request(req, params, 5, self.req_ok);
     }
 }

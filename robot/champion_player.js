@@ -1,8 +1,9 @@
 require('./utility');
 exports.msg_maker = msg_maker;
 exports.msg_handler = msg_handler;
+exports.hall = hall;
 
-function msg_maker(user_info){
+function msg_maker(user_info){//desk
     var self = this;
     self.u = require('./utility');
     self.user_info = user_info;
@@ -15,6 +16,12 @@ function msg_maker(user_info){
         //mo.room_type = self.room_type;
         if (self.match_id != undefined){
             mo.matchId = self.match_id;
+        }
+        if (self.room_type != undefined){
+            mo.roomType = self.room_type;
+        }
+        if (self.desk_id != undefined){
+            mo.deskId = self.desk_id;
         }
         
         var smo = self.u.sortObject(mo);
@@ -44,8 +51,9 @@ function msg_maker(user_info){
         return self.make_msg({op:"lobby/game/left"});
     }
 
-    self.join_match = function(match_id){
+    self.join_match = function(match_id, room_type){
         self.match_id = match_id;
+        self.room_type = room_type;
         return self.make_msg({op:"lobby/game/JoinMatch"});
     }
 
@@ -58,7 +66,7 @@ function msg_maker(user_info){
     }
 }
 
-function msg_handler(user_info, ws){
+function msg_handler(user_info, maker){//desk
     var self = this;
     self.LC_BROADCAST_ACTION_TYPE_START_GAME = 1; //开局
     self.LC_BROADCAST_ACTION_TYPE_HOLE_CARD = 2; //发底牌
@@ -102,16 +110,19 @@ function msg_handler(user_info, ws){
     var fd=new Date('2015-01-01');
     self.service_end_time = parseInt(fd.getTime()/1000);
     self.user_info = user_info;
-    self.maker = new msg_maker(self.user_info);
+    self.maker = maker;//new msg_maker(self.user_info);
     self.sequence_id = 0;
+
     self.parse = function (msg){
         var msg_obj;
         try{
             msg_obj = JSON.parse(msg);
         }catch(e){
             console.log('exception: ' + e);
-            ws.close();
+            //ws.close();
+            return false;
         }
+        console.log(__LINE__, msg);
         //console.log(JSON.stringify(msg_obj, null, 2));
         //console.log(self.sequence_id + " vs "  +msg_obj.sequence_id);
         console.log("state uid: " + self.user_info.uid + " left chip: " + self.dUChip +
@@ -120,36 +131,54 @@ function msg_handler(user_info, ws){
                 " max round chip: " + self.dBoardMaxRoundChip + " last bet chip:" + self.dUBetchips);
         console.log("this action: "+msg_obj.action.action);
         if (msg_obj.retCode !== 0){
+            console.log(__LINE__);
             console.log('retcode: ' + msg_obj.retCode);
-            ws.close();
+            //ws.close();
+            var req_msg = self.global_game_info();
+            return req_msg;
         }else{
+            console.log(__LINE__);
+            var req_msg = '';
             if (msg_obj.sequence_id === undefined){
+            console.log(__LINE__);
                 console.log('no sequence_id');
-                ws.close();
+                //ws.close();
+                return false;
             }else{
+            console.log(__LINE__);
                 var action = msg_obj.action.action;
-                var req_msg = '';
                 if(action == self.LC_BROADCAST_ACTION_TYPE_INIT_USERGAMEINFO){
+            console.log(__LINE__);
                     if (parseInt(msg_obj.sequence_id) < parseInt(self.sequence_id)){
+            console.log(__LINE__);
                         console.log('full sequence_id error: ' + msg_obj.sequence_id + ' vs ' + self.sequence_id);
-                        ws.close();
+                        //ws.close();
+                        return false;
                     }else{
+            console.log(__LINE__);
                         self.sequence_id = parseInt(msg_obj.sequence_id);
-                        req_msg = self.resp_global_game_info(msg_obj);
+                        console.log(__LINE__);
+                        //req_msg = self.resp_global_game_info(msg_obj, self.mul_desk);
                     }
                 }else{//incremently
+            console.log(__LINE__);
                     if (self.sequence_id === 0){
-                        //console.log(__LINE__);
+            console.log(__LINE__);
+                        console.log(__LINE__);
                         req_msg  = self.global_game_info();
                     }else if(parseInt(msg_obj.sequence_id) <= parseInt(self.sequence_id)){
+            console.log(__LINE__);
                         //console.log(__LINE__);
                         console.log('incremently sequence_id error: ' + msg_obj.sequence_id + ' vs ' + self.sequence_id);
-                        ws.close();
+                        //ws.close();
+                        return false;
                     }else if(parseInt(msg_obj.sequence_id) > parseInt(self.sequence_id) + 1){
+            console.log(__LINE__);
                         //console.log(msg_obj.sequence_id, " vvss ", parseInt(self.sequence_id) + 1, parseInt(msg_obj.sequence_id) > parseInt(self.sequence_id) + 1);
-                        //console.log(__LINE__);
+                        console.log(__LINE__);
                         req_msg  = self.global_game_info();
                     }else{
+            console.log(__LINE__);
                         //console.log(__LINE__);
                         self.sequence_id = parseInt(msg_obj.sequence_id);
                         //console.log("self.sequence_id updated: " + self.sequence_id);
@@ -169,6 +198,7 @@ function msg_handler(user_info, ws){
                                 req_msg = self.resp_get_holdcard(msg_obj);
                                 break;
                             case self.LC_BROADCAST_ACTION_TYPE_NOTICE_ACTIVE_USER:
+            console.log(__LINE__);
                                 req_msg = self.resp_notify_active_user(msg_obj);
                                 break;
                             case self.LC_BROADCAST_ACTION_TYPE_FOLD:
@@ -216,7 +246,8 @@ function msg_handler(user_info, ws){
                                 req_msg = self.resp_monitor_stand_up(msg_obj);
                                 break;
                             case self.LC_BROADCAST_ACTION_TYPE_INIT_USERGAMEINFO:
-                                req_msg = self.resp_global_game_info(msg_obj);
+                                console.log(__LINE__);
+                                //req_msg = self.resp_global_game_info(msg_obj, self.mul_desk);
                                 break;
                             case self.LC_BROADCAST_ACTION_TYPE_EXCHANGE_CHIP:
                                 req_msg = self.resp_buy_chip(msg_obj);
@@ -226,41 +257,9 @@ function msg_handler(user_info, ws){
                         }
                     }
                 }
-                if (req_msg !== ''){
-                    var sleep = 0;
-                    if (action == self.LC_BROADCAST_ACTION_TYPE_NOTICE_ACTIVE_USER){
-                        var r = Math.random();
-                        if(r<0.1){
-                            sleep = 1;
-                        }else if(r<0.45){
-                            sleep = 3;
-                        }else if(r<0.85){
-                            sleep = 5;
-                        }else if(r<0.95){
-                            sleep = 7;
-                        }else{
-                            sleep = 8;
-                        }
-                    }
-                    setTimeout(self.send_msg, sleep*1000, req_msg);
-                }
             }
+            return req_msg;
         }
-    }
-
-    self.send_msg = function(msg){
-        if (!msg){
-            console.log(__LINE__, "error msg: " + msg);
-            return false;
-        }
-        //console.log('send :' + JSON.stringify(JSON.parse(msg), null, 2));
-        console.log('send: ' + JSON.parse(msg).op);
-        ws.send(msg, {binary:false, mask: true}, function(err){
-            if(err){
-                console.log("ws send error: " + err);
-                ws.close();
-            }
-        });
     }
 
     self.set_desk = function(desk){
@@ -336,6 +335,9 @@ function msg_handler(user_info, ws){
     };
 
     self.resp_start_game = function(msg_obj){
+        if (msg_obj.action.uid != self.user_info.uid){
+            return '';
+        }
         self.dHoleCardArr=[];
         self.dBoardPublicCardArr=[];
 
@@ -348,6 +350,7 @@ function msg_handler(user_info, ws){
         self.dBoardSmallBlindSeatNum=msg_obj.inc["small_blind_seat_num"];
         self.dBoardMaxRoundChip=msg_obj.inc["max_round_chip"];
         self.dBoardRaiseChip=msg_obj.inc["raise_chip"];
+        self.dBoardID=msg_obj.inc["board_id"];
         msg_obj.inc["players"].forEach(function(item, index, arr){
             if (item.seat_num == self.dSeatNum){
                 self.dUChip = item.chip;
@@ -435,12 +438,14 @@ function msg_handler(user_info, ws){
 
     self.resp_notify_active_user = function(msg_obj){
         //console.log(JSON.stringify(msg_obj, null, 2));
+            console.log(__LINE__);
 
         self.dBoardActiveSeatNum=msg_obj.inc["active_seat_num"];
         self.dBoardRaiseChip=msg_obj.inc["raise_chip"];
         self.dBoardMaxRoundChip=msg_obj.inc["max_round_chip"];
 
         if(self.user_info.uid == msg_obj.action["uid"]){
+            console.log(__LINE__);
             return self.think();
         }
         return '';
@@ -508,6 +513,7 @@ function msg_handler(user_info, ws){
             //console.log('------------------left');
             return self.maker.left();
         }else{
+            return '';
             if (self.dRoomType == 1){
                 //if (Math.random()<0.1){
                 //    return self.maker.change_desk();
@@ -544,7 +550,8 @@ function msg_handler(user_info, ws){
     self.resp_left = function(msg_obj){
         if(self.user_info.uid==msg_obj.action["uid"]){
             self.dSequenceID=0;
-            ws.close();
+            //ws.close();
+            return false;
         }
         return '';
     };
@@ -569,23 +576,6 @@ function msg_handler(user_info, ws){
         return self.resp_host_left(msg_obj);
     };
 
-    self.resp_global_game_info = function(msg_obj){
-        if (msg_obj.action.uid != self.user_info.uid){
-            return '';
-        }
-        self.dSeatNum = msg_obj.action.seat_num;
-        if(msg_obj.inc.desk !== undefined){
-            self.set_desk(msg_obj.inc.desk);
-        }
-        if(msg_obj.inc.board !== undefined){
-            //console.log(JSON.stringify(msg_obj.inc.board, null, 2));
-            self.set_board(msg_obj.inc.board);
-        }
-        if(msg_obj.inc.players !== undefined){
-            self.set_players(msg_obj.inc.players);
-        }
-        return '';
-    };
 
     self.resp_buy_chip = function(msg_obj){
         if(msg_obj.inc["seat_num"]==self.dSeatNum){
@@ -597,4 +587,190 @@ function msg_handler(user_info, ws){
     self.global_game_info = function(){
         return self.maker.global_game_info();
     };
+}
+
+function hall(user_info, ws){
+    var self = this;
+    self.LC_BROADCAST_ACTION_TYPE_START_GAME = 1; //开局
+    self.LC_BROADCAST_ACTION_TYPE_HOLE_CARD = 2; //发底牌
+    self.LC_BROADCAST_ACTION_TYPE_FIGHT_CARD = 3; //斗牌
+    self.LC_BROADCAST_ACTION_TYPE_FOLD = 4; //弃牌
+    self.LC_BROADCAST_ACTION_TYPE_CHECK = 5; //过牌
+    self.LC_BROADCAST_ACTION_TYPE_ALLIN = 6; //allin
+    self.LC_BROADCAST_ACTION_TYPE_BET = 7; //普通下注
+    self.LC_BROADCAST_ACTION_TYPE_CALL = 8; //跟注
+    self.LC_BROADCAST_ACTION_TYPE_RAISE = 9; //加注
+    self.LC_BROADCAST_ACTION_TYPE_SITDOWN = 10; //坐下
+    self.LC_BROADCAST_ACTION_TYPE_STANDUP = 11; //站起
+    self.LC_BROADCAST_ACTION_TYPE_INIT_USERGAMEINFO = 12; //初始化用户游戏信息
+    self.LC_BROADCAST_ACTION_TYPE_NOTICE_ACTIVE_USER = 13; //通知活动用户
+    self.LC_BROADCAST_ACTION_TYPE_NOTICE_SIDE_POT = 14; //通知边池更新
+    self.LC_BROADCAST_ACTION_TYPE_NOTICE_NEW_ROUND = 15; //通知开新轮（里面包含新轮公共牌）
+    self.LC_BROADCAST_ACTION_TYPE_SMALL_BLIND = 16; //普通小盲下注
+    self.LC_BROADCAST_ACTION_TYPE_SMALL_BLIND_ALLIN = 17; //小盲allin下注
+    self.LC_BROADCAST_ACTION_TYPE_BIG_BLIND = 18; //普通大盲下注
+    self.LC_BROADCAST_ACTION_TYPE_BIG_BLIND_ALLIN = 19; //大盲allin下注
+    self.LC_BROADCAST_ACTION_TYPE_PRIZE = 20; //派奖
+    self.LC_BROADCAST_ACTION_TYPE_END_BOARD = 21; //牌局结束
+    self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM = 22; //离开房间
+    self.LC_BROADCAST_ACTION_TYPE_SNG_RANKING_UPDATE = 23; //sng排名更新
+    self.LC_BROADCAST_ACTION_TYPE_SNG_MATCH_PRIZE = 24; //sng比赛派奖
+    self.LC_BROADCAST_ACTION_TYPE_SNG_BLIND_UPDATE = 25; //sng大小盲更新
+    self.LC_BROADCAST_ACTION_TYPE_SYSTEM_EXCEPTION = 26; //系统异常广播
+    self.LC_BROADCAST_ACTION_TYPE_EXCHANGE_CHIP = 27; //成功兑换筹码
+    self.LC_BROADCAST_ACTION_TYPE_EMOTICON = 28; //发魔法表情广播
+    self.LC_BROADCAST_ACTION_TYPE_CHARACTER = 29;//发聊天文字广播
+    self.LC_BROADCAST_ACTION_TYPE_EXCHANGE_CHIP_NOT_BOARD = 30; //成功兑换筹码(不在牌局中)
+    self.LC_BROADCAST_ACTION_TYPE_PROMPT = 31;     //牌型提示
+    self.LC_BROADCAST_ACTION_TYPE_NO_MONEY_STANDUP = 32;   //牌局结束游戏币不足系统使其站起
+    self.LC_BROADCAST_ACTION_TYPE_BOARD_PAY = 33;  //牌局费广播（因为调整到创建牌局的时候扣，该广播已废弃）
+    self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_CHANGE_DESK = 34; //离开房间(换桌离开)
+    self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_HOSTING = 35; //离开房间(托管站起导致的离开)
+    self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_SIT_DOWN_MONITOR = 36; //离开房间(入座超时导致的离开)
+    self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_STANDUP_MONITOR = 37; //离开房间(站起超时导致的离开)
+    self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_SNG_MATCH_END = 38; //离开房间(sng比赛结束强制离开)
+
+    self.user_info = user_info;
+    self.mul_desk = {};
+
+    self.parse = function (msg){
+        console.log(__LINE__);
+        //console.log(self.mul_desk);
+        var msg_obj;
+        try{
+            msg_obj = JSON.parse(msg);
+        }catch(e){
+            console.log('exception: ' + e);
+            ws.close();
+        }
+        //console.log(__LINE__, msg);
+        //console.log(JSON.stringify(msg_obj, null, 2));
+        console.log("this action: "+msg_obj.action.action);
+        console.log("\n");
+            var req_msg = '';
+        if (msg_obj.retCode !== 0){
+            console.log('retcode: ' + msg_obj.retCode);
+                    req_msg = self.global_game_info();
+            //ws.close();
+        }else{
+            var action = msg_obj.action.action;
+            if (action == self.LC_BROADCAST_ACTION_TYPE_INIT_USERGAMEINFO) {
+                self.mul_desk = self.resp_global_game_info(msg_obj);
+            } else {
+                var desk_id = parseInt(msg_obj.desk_id);
+                var desk = self.mul_desk[desk_id];
+                if (desk == undefined){
+                    console.log(__LINE__);
+                    req_msg = self.global_game_info();
+                } else {
+                    req_msg = desk.parse(msg);
+                    console.log(__LINE__,req_msg);
+                }
+            }
+
+            if (req_msg){
+                var sleep = 0;
+                if (action == self.LC_BROADCAST_ACTION_TYPE_NOTICE_ACTIVE_USER){
+                    var r = Math.random();
+                    if(r<0.1){
+                        sleep = 1;
+                    }else if(r<0.45){
+                        sleep = 3;
+                    }else if(r<0.85){
+                        sleep = 5;
+                    }else if(r<0.95){
+                        sleep = 7;
+                    }else{
+                        sleep = 8;
+                    }
+                }
+                sleep = 2;
+                //self.send_msg(req_msg);
+                setTimeout(self.send_msg, sleep*1000, req_msg);
+            }
+        }
+    }
+    
+    self.u = require('./utility');
+    self.make_msg = function (mo){
+        mo.session_id = self.user_info.session_id;
+        mo.from_where = 2000;
+        mo.uid = parseInt(self.user_info.uid);
+        mo.matchId = self.match_id;
+        mo.roomType = self.room_type;
+        
+        var smo = self.u.sortObject(mo);
+        var k, to_sign='';
+        for (k in smo){
+            to_sign += k + smo[k];
+        }
+        to_sign += self.user_info.md5key;
+
+        mo.urlsign = self.u.md5(to_sign);
+        return JSON.stringify(mo);
+    }
+
+    self.global_game_info = function(){
+        //console.log(__STACK__);
+        return self.make_msg({op:"lobby/game/getUserGameInfo"});
+    }
+    
+    self.join_match = function(match_id, room_type){
+        self.match_id = match_id;
+        self.room_type = room_type;
+        return self.make_msg({op:"lobby/game/JoinMatch"});
+    }
+
+    self.resp_global_game_info = function(msg_obj){
+        mul_desk = {};
+        msg_obj.list.forEach(function(item){
+            if (item.action.uid != self.user_info.uid){
+                return mul_desk;
+            }
+            
+            var maker = new msg_maker(self.user_info);
+            maker.match_id = item.inc.desk.match_id;
+            maker.desk_id = item.inc.desk.desk_id;
+            maker.room_type = item.inc.desk.room_type;
+
+            var desk = new msg_handler(self.user_info, maker);
+            desk.match_id = item.inc.desk.match_id;
+            desk.desk_id = item.inc.desk.desk_id;
+            desk.sequence_id = item.sequence_id;
+            desk.dSeatNum = item.action.seat_num;
+            desk.room_type = item.inc.desk.room_type;
+
+            if(item.inc.desk !== undefined){
+                desk.set_desk(item.inc.desk);
+            }
+            if(item.inc.board !== undefined){
+                desk.set_board(item.inc.board);
+            }
+            if(item.inc.players !== undefined){
+                desk.set_players(item.inc.players);
+            }
+            mul_desk[parseInt(item.desk_id)] = desk;
+        });
+        //console.log(mul_desk);
+        for (k in mul_desk){
+            console.log(__LINE__, k);
+        }
+        return mul_desk;
+    };
+
+    self.send_msg = function(msg){
+        if (!msg){
+            console.log(__LINE__, "error msg: " + msg);
+            return false;
+        }
+        //console.log('send :' + JSON.stringify(JSON.parse(msg), null, 2));
+        console.log(__LINE__, 'send: ' + msg);
+        //console.log('send: ' + JSON.parse(msg).op);
+        ws.send(msg, {binary:false, mask: true}, function(err){
+            if(err){
+                console.log("ws send error: " + err);
+                ws.close();
+            }
+        });
+    }
 }

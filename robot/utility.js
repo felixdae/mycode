@@ -1,10 +1,15 @@
 exports.md5=md5;
+exports.clone=clone;
 exports.sortObject=sortObject;
 
 function md5 (text) {
     var crypto = require('crypto');
     return crypto.createHash('md5').update(text).digest('hex');
 };
+
+function clone(a) {
+       return JSON.parse(JSON.stringify(a));
+}
 
 function sortObject(o) {
     var sorted = {},

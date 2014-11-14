@@ -3,6 +3,7 @@ module.exports = ws_init;
 
 function ws_init(setting, user_info, room_info){
     var self = this;
+    console.log(__LINE__);
 
     self.setting = setting;
     self.ws_path = 'ws://10.0.1.28:7681';
@@ -24,27 +25,30 @@ function ws_init(setting, user_info, room_info){
     }
 
     self.play = function (){
-        var room = self.choose_room(self.user_info, self.room_info);
-        var room_id = room.id;
 
         var WebSocket = require('ws');
         var ws = new WebSocket(self.ws_path);
         var maker;
-        if (self.setting.tour == true){
-            var player = require('./tour_player');
-            var maker = new player.msg_maker(self.user_info, 4);
+        var handler;
+        if (self.setting.champion== true){
+            var player = require('./champion_player');
+            maker = new player.msg_maker(self.user_info, 4);
+            handler = new player.hall(self.user_info, ws);
         }else{
             var player = require('./player');
-            var maker = new player.msg_maker(self.user_info);
+            maker = new player.msg_maker(self.user_info);
+            handler = new player.msg_handler(self.user_info, ws);
         }
-        var handler = new player.msg_handler(self.user_info, ws);
         ws.on('open', function (){
-            if (self.setting.tour == true){
-                var msg = maker.join_match(1);
+            if (self.setting.champion== true){
+                //console.log(__LINE__);
+                var msg = handler.join_match(1, 4);
             }else{
+                var room = self.choose_room(self.user_info, self.room_info);
+                var room_id = room.id;
                 var msg = maker.sit_down(room_id);
             }
-            console.log('send :' + JSON.parse(msg).op);
+            console.log('send :' + msg);
             ws.send(msg, {binary:false, mask: true}, function(err){
                 if(err){
                     console.log("ws send error: " + err);
@@ -56,6 +60,7 @@ function ws_init(setting, user_info, room_info){
             console.log('ws closed');
         });
         ws.on('message', function (data, flags) {
+            console.log(data);
             handler.parse(data);
         });
     }

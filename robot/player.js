@@ -1,4 +1,3 @@
-//exports.ws_player = ws_player;
 require('./utility');
 exports.msg_maker = msg_maker;
 exports.msg_handler = msg_handler;
@@ -584,6 +583,9 @@ function msg_handler(user_info, ws){
         }
         return '';
     };
+
+
+
 
     self.global_game_info = function(){
         return self.maker.global_game_info();
