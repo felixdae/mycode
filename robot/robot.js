@@ -9,6 +9,7 @@ function main(){
     if (process.argv.length > 5 && process.argv[5] == 'champion'){
         setting.champion= true;
     }
+    //console.log(setting);
     //console.log(process.argv, setting.champion);
     var robot_start = function(user_info,room_info){
         var ws_init = require('./ws_init');

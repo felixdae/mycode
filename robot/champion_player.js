@@ -43,10 +43,6 @@ function msg_maker(user_info){//desk
         return self.make_msg({op:"lobby/game/callbet", 'chip':0, action:2});
     }
 
-    self.change_desk = function(){
-        return self.make_msg({op:"lobby/game/changedesk"});
-    }
-
     self.left = function(){
         return self.make_msg({op:"lobby/game/left"});
     }
@@ -55,10 +51,6 @@ function msg_maker(user_info){//desk
         self.match_id = match_id;
         self.room_type = room_type;
         return self.make_msg({op:"lobby/game/JoinMatch"});
-    }
-
-    self.sit_down = function(room_id){
-        return self.make_msg({op:"lobby/game/sitdown",roomId:room_id});
     }
 
     self.global_game_info = function(){
@@ -111,7 +103,7 @@ function msg_handler(user_info, maker){//desk
     self.service_end_time = parseInt(fd.getTime()/1000);
     self.user_info = user_info;
     self.maker = maker;//new msg_maker(self.user_info);
-    self.sequence_id = 0;
+    //self.sequence_id = 0;
 
     self.parse = function (msg){
         var msg_obj;
@@ -119,74 +111,51 @@ function msg_handler(user_info, maker){//desk
             msg_obj = JSON.parse(msg);
         }catch(e){
             console.log('exception: ' + e);
-            //ws.close();
+            ws.close();
             return false;
         }
-        console.log(__LINE__, msg);
-        //console.log(JSON.stringify(msg_obj, null, 2));
-        //console.log(self.sequence_id + " vs "  +msg_obj.sequence_id);
         console.log("state uid: " + self.user_info.uid + " left chip: " + self.dUChip +
                 " board id: " + self.dBoardID + " desk id: " + self.dDeskID);
-        console.log("big blind: " + self.dBoardBigBlindChip + " board raise chip: " + self.dBoardRaiseChip +
-                " max round chip: " + self.dBoardMaxRoundChip + " last bet chip:" + self.dUBetchips);
         console.log("this action: "+msg_obj.action.action);
+        var req_msg = '';
         if (msg_obj.retCode !== 0){
-            console.log(__LINE__);
             console.log('retcode: ' + msg_obj.retCode);
             //ws.close();
-            var req_msg = self.global_game_info();
+            req_msg = self.global_game_info();
             return req_msg;
         }else{
-            console.log(__LINE__);
-            var req_msg = '';
             if (msg_obj.sequence_id === undefined){
-            console.log(__LINE__);
                 console.log('no sequence_id');
-                //ws.close();
+                ws.close();
                 return false;
             }else{
-            console.log(__LINE__);
                 var action = msg_obj.action.action;
                 if(action == self.LC_BROADCAST_ACTION_TYPE_INIT_USERGAMEINFO){
-            console.log(__LINE__);
                     if (parseInt(msg_obj.sequence_id) < parseInt(self.sequence_id)){
-            console.log(__LINE__);
                         console.log('full sequence_id error: ' + msg_obj.sequence_id + ' vs ' + self.sequence_id);
                         //ws.close();
                         return false;
                     }else{
-            console.log(__LINE__);
                         self.sequence_id = parseInt(msg_obj.sequence_id);
-                        console.log(__LINE__);
                         //req_msg = self.resp_global_game_info(msg_obj, self.mul_desk);
                     }
+                }else if(action == self.LC_BROADCAST_ACTION_TYPE_EMOTICON||action == self.LC_BROADCAST_ACTION_TYPE_CHARACTER){
+                    console.log('emotion or chat');
                 }else{//incremently
-            console.log(__LINE__);
                     if (self.sequence_id === 0){
-            console.log(__LINE__);
-                        console.log(__LINE__);
                         req_msg  = self.global_game_info();
                     }else if(parseInt(msg_obj.sequence_id) <= parseInt(self.sequence_id)){
-            console.log(__LINE__);
-                        //console.log(__LINE__);
                         console.log('incremently sequence_id error: ' + msg_obj.sequence_id + ' vs ' + self.sequence_id);
-                        //ws.close();
+                        ws.close();
                         return false;
                     }else if(parseInt(msg_obj.sequence_id) > parseInt(self.sequence_id) + 1){
-            console.log(__LINE__);
-                        //console.log(msg_obj.sequence_id, " vvss ", parseInt(self.sequence_id) + 1, parseInt(msg_obj.sequence_id) > parseInt(self.sequence_id) + 1);
-                        console.log(__LINE__);
                         req_msg  = self.global_game_info();
                     }else{
-            console.log(__LINE__);
-                        //console.log(__LINE__);
                         self.sequence_id = parseInt(msg_obj.sequence_id);
-                        //console.log("self.sequence_id updated: " + self.sequence_id);
                         switch(action)
                         {
                             case self.LC_BROADCAST_ACTION_TYPE_EMOTICON:
                             case self.LC_BROADCAST_ACTION_TYPE_CHARACTER:
-                                console.log('emotion or chat');
                                 break;
                             case self.LC_BROADCAST_ACTION_TYPE_SITDOWN:
                                 req_msg = self.resp_sit_down(msg_obj);
@@ -198,8 +167,9 @@ function msg_handler(user_info, maker){//desk
                                 req_msg = self.resp_get_holdcard(msg_obj);
                                 break;
                             case self.LC_BROADCAST_ACTION_TYPE_NOTICE_ACTIVE_USER:
-            console.log(__LINE__);
                                 req_msg = self.resp_notify_active_user(msg_obj);
+                                console.log("big blind: " + self.dBoardBigBlindChip + " board raise chip: " + self.dBoardRaiseChip +
+                                        " max round chip: " + self.dBoardMaxRoundChip + " last bet chip:" + self.dUBetchips);
                                 break;
                             case self.LC_BROADCAST_ACTION_TYPE_FOLD:
                                 req_msg = self.resp_fold(msg_obj);
@@ -221,7 +191,6 @@ function msg_handler(user_info, maker){//desk
                                 req_msg = self.resp_notify_side_pot(msg_obj);
                                 break;
                             case self.LC_BROADCAST_ACTION_TYPE_END_BOARD:
-                                //console.log('------------'+self.service_end_time);
                                 req_msg = self.resp_end_board(msg_obj);
                                 break;
                             case self.LC_BROADCAST_ACTION_TYPE_STANDUP:
@@ -246,7 +215,7 @@ function msg_handler(user_info, maker){//desk
                                 req_msg = self.resp_monitor_stand_up(msg_obj);
                                 break;
                             case self.LC_BROADCAST_ACTION_TYPE_INIT_USERGAMEINFO:
-                                console.log(__LINE__);
+                                console.log(__LINE__, "self.LC_BROADCAST_ACTION_TYPE_INIT_USERGAMEINFO here");
                                 //req_msg = self.resp_global_game_info(msg_obj, self.mul_desk);
                                 break;
                             case self.LC_BROADCAST_ACTION_TYPE_EXCHANGE_CHIP:
@@ -269,6 +238,8 @@ function msg_handler(user_info, maker){//desk
         self.dDeskStatus=deskArr["desk_status"];
         self.dDeskMaxPerson=deskArr["max_person"];
         self.dRoomType=deskArr["room_type"];
+        self.dBoardBigBlindChip=deskArr["big_blind_chip"];
+        self.dBoardSmallBlindChip=deskArr["small_blind_chip"];
     }
 
     self.set_board = function(board){
@@ -279,19 +250,13 @@ function msg_handler(user_info, maker){//desk
         self.dBoardBigBlindSeatNum=boardArr["dealer_seat_num"];
         self.dBoardBigBlindSeatNum=boardArr["big_blind_seat_num"];
         self.dBoardSmallBlindSeatNum=boardArr["small_blind_seat_num"];
-        self.dBoardBigBlindChip=boardArr["big_blind_chip"];
-        self.dBoardSmallBlindChip=boardArr["small_blind_chip"];
         self.dBoardTotalChip=boardArr["total_chip"];
         self.dBoardRound=boardArr["round"];
     }
 
     self.set_players = function(players){
         self.dPlayerArr=players;
-        //console.log(__LINE__);
-        //console.log(JSON.stringify(players, null, 2));
         self.dPlayerArr.forEach(function(item, index, arr){
-            //console.log(__LINE__);
-            //console.log(item.uid,self.user_info.uid,self.dUBetchips);
             if (item.uid == self.user_info.uid){
                 self.dUChip=item["chip"];
                 self.dUBetchips=item["betchips"];
@@ -301,43 +266,42 @@ function msg_handler(user_info, maker){//desk
                 }
             }
         });
-        //console.log(__LINE__);
-        //console.log(self.dUBetchips);
     }
 
     self.resp_sit_down = function(msg_obj){
-        if (self.user_info != msg_obj.action.uid){
-            return '';
-        }
-        self.dSeatNum = msg_obj.action.seat_num;
-        //console.log(__LINE__, JSON.stringify(msg_obj, null, 2));
+        console.log(__LINE__, "resp_sit_down?");
+        return false;
+    //    if (self.user_info != msg_obj.action.uid){
+    //        return '';
+    //    }
+    //    self.dSeatNum = msg_obj.action.seat_num;
 
-        if (msg_obj.action.broadcast_type == 0)
-        {
-            //入座增量包
-            self.dRoomType=msg_obj.action["room_type"];
-            self.dUserStatus=msg_obj.inc["user_status"];
-            self.dUChip=msg_obj.inc["chip"];
-            self.dUBetchips=msg_obj.inc["betchips"];
-        }
-        else
-        {
-            //入座全量包
-            if (msg_obj.inc.desk != undefined){
-                self.set_desk(msg_obj.inc.desk);
-            }
+    //    if (msg_obj.action.broadcast_type == 0)
+    //    {
+    //        //入座增量包
+    //        self.dRoomType=msg_obj.action["room_type"];
+    //        self.dUserStatus=msg_obj.inc["user_status"];
+    //        self.dUChip=msg_obj.inc["chip"];
+    //        self.dUBetchips=msg_obj.inc["betchips"];
+    //    }
+    //    else
+    //    {
+    //        //入座全量包
+    //        if (msg_obj.inc.desk != undefined){
+    //            self.set_desk(msg_obj.inc.desk);
+    //        }
 
-            if (msg_obj.inc.players != undefined){
-                self.set_players(msg_obj.inc.players);
-            }
-        }
-        return '';
+    //        if (msg_obj.inc.players != undefined){
+    //            self.set_players(msg_obj.inc.players);
+    //        }
+    //    }
+    //    return '';
     };
 
     self.resp_start_game = function(msg_obj){
-        if (msg_obj.action.uid != self.user_info.uid){
-            return '';
-        }
+        //if (msg_obj.action.uid != self.user_info.uid){
+        //    return '';
+        //}
         self.dHoleCardArr=[];
         self.dBoardPublicCardArr=[];
 
@@ -438,14 +402,12 @@ function msg_handler(user_info, maker){//desk
 
     self.resp_notify_active_user = function(msg_obj){
         //console.log(JSON.stringify(msg_obj, null, 2));
-            console.log(__LINE__);
 
         self.dBoardActiveSeatNum=msg_obj.inc["active_seat_num"];
         self.dBoardRaiseChip=msg_obj.inc["raise_chip"];
         self.dBoardMaxRoundChip=msg_obj.inc["max_round_chip"];
 
         if(self.user_info.uid == msg_obj.action["uid"]){
-            console.log(__LINE__);
             return self.think();
         }
         return '';
@@ -591,51 +553,13 @@ function msg_handler(user_info, maker){//desk
 
 function hall(user_info, ws){
     var self = this;
-    self.LC_BROADCAST_ACTION_TYPE_START_GAME = 1; //开局
-    self.LC_BROADCAST_ACTION_TYPE_HOLE_CARD = 2; //发底牌
-    self.LC_BROADCAST_ACTION_TYPE_FIGHT_CARD = 3; //斗牌
-    self.LC_BROADCAST_ACTION_TYPE_FOLD = 4; //弃牌
-    self.LC_BROADCAST_ACTION_TYPE_CHECK = 5; //过牌
-    self.LC_BROADCAST_ACTION_TYPE_ALLIN = 6; //allin
-    self.LC_BROADCAST_ACTION_TYPE_BET = 7; //普通下注
-    self.LC_BROADCAST_ACTION_TYPE_CALL = 8; //跟注
-    self.LC_BROADCAST_ACTION_TYPE_RAISE = 9; //加注
-    self.LC_BROADCAST_ACTION_TYPE_SITDOWN = 10; //坐下
-    self.LC_BROADCAST_ACTION_TYPE_STANDUP = 11; //站起
     self.LC_BROADCAST_ACTION_TYPE_INIT_USERGAMEINFO = 12; //初始化用户游戏信息
     self.LC_BROADCAST_ACTION_TYPE_NOTICE_ACTIVE_USER = 13; //通知活动用户
-    self.LC_BROADCAST_ACTION_TYPE_NOTICE_SIDE_POT = 14; //通知边池更新
-    self.LC_BROADCAST_ACTION_TYPE_NOTICE_NEW_ROUND = 15; //通知开新轮（里面包含新轮公共牌）
-    self.LC_BROADCAST_ACTION_TYPE_SMALL_BLIND = 16; //普通小盲下注
-    self.LC_BROADCAST_ACTION_TYPE_SMALL_BLIND_ALLIN = 17; //小盲allin下注
-    self.LC_BROADCAST_ACTION_TYPE_BIG_BLIND = 18; //普通大盲下注
-    self.LC_BROADCAST_ACTION_TYPE_BIG_BLIND_ALLIN = 19; //大盲allin下注
-    self.LC_BROADCAST_ACTION_TYPE_PRIZE = 20; //派奖
-    self.LC_BROADCAST_ACTION_TYPE_END_BOARD = 21; //牌局结束
-    self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM = 22; //离开房间
-    self.LC_BROADCAST_ACTION_TYPE_SNG_RANKING_UPDATE = 23; //sng排名更新
-    self.LC_BROADCAST_ACTION_TYPE_SNG_MATCH_PRIZE = 24; //sng比赛派奖
-    self.LC_BROADCAST_ACTION_TYPE_SNG_BLIND_UPDATE = 25; //sng大小盲更新
-    self.LC_BROADCAST_ACTION_TYPE_SYSTEM_EXCEPTION = 26; //系统异常广播
-    self.LC_BROADCAST_ACTION_TYPE_EXCHANGE_CHIP = 27; //成功兑换筹码
-    self.LC_BROADCAST_ACTION_TYPE_EMOTICON = 28; //发魔法表情广播
-    self.LC_BROADCAST_ACTION_TYPE_CHARACTER = 29;//发聊天文字广播
-    self.LC_BROADCAST_ACTION_TYPE_EXCHANGE_CHIP_NOT_BOARD = 30; //成功兑换筹码(不在牌局中)
-    self.LC_BROADCAST_ACTION_TYPE_PROMPT = 31;     //牌型提示
-    self.LC_BROADCAST_ACTION_TYPE_NO_MONEY_STANDUP = 32;   //牌局结束游戏币不足系统使其站起
-    self.LC_BROADCAST_ACTION_TYPE_BOARD_PAY = 33;  //牌局费广播（因为调整到创建牌局的时候扣，该广播已废弃）
-    self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_CHANGE_DESK = 34; //离开房间(换桌离开)
-    self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_HOSTING = 35; //离开房间(托管站起导致的离开)
-    self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_SIT_DOWN_MONITOR = 36; //离开房间(入座超时导致的离开)
-    self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_STANDUP_MONITOR = 37; //离开房间(站起超时导致的离开)
-    self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_SNG_MATCH_END = 38; //离开房间(sng比赛结束强制离开)
-
     self.user_info = user_info;
     self.mul_desk = {};
+    self.u = require('./utility');
 
     self.parse = function (msg){
-        console.log(__LINE__);
-        //console.log(self.mul_desk);
         var msg_obj;
         try{
             msg_obj = JSON.parse(msg);
@@ -643,14 +567,10 @@ function hall(user_info, ws){
             console.log('exception: ' + e);
             ws.close();
         }
-        //console.log(__LINE__, msg);
-        //console.log(JSON.stringify(msg_obj, null, 2));
-        console.log("this action: "+msg_obj.action.action);
-        console.log("\n");
-            var req_msg = '';
+        var req_msg = '';
         if (msg_obj.retCode !== 0){
-            console.log('retcode: ' + msg_obj.retCode);
-                    req_msg = self.global_game_info();
+            console.log(__LINE__, 'retcode: ' + msg_obj.retCode);
+            req_msg = self.global_game_info();
             //ws.close();
         }else{
             var action = msg_obj.action.action;
@@ -660,11 +580,10 @@ function hall(user_info, ws){
                 var desk_id = parseInt(msg_obj.desk_id);
                 var desk = self.mul_desk[desk_id];
                 if (desk == undefined){
-                    console.log(__LINE__);
+                    console.log(__LINE__, "no desk for desk_id: " + desk_id + ", " + JSON.stringify(self.mul_desk));
                     req_msg = self.global_game_info();
                 } else {
                     req_msg = desk.parse(msg);
-                    console.log(__LINE__,req_msg);
                 }
             }
 
@@ -685,13 +604,11 @@ function hall(user_info, ws){
                     }
                 }
                 sleep = 2;
-                //self.send_msg(req_msg);
                 setTimeout(self.send_msg, sleep*1000, req_msg);
             }
         }
     }
     
-    self.u = require('./utility');
     self.make_msg = function (mo){
         mo.session_id = self.user_info.session_id;
         mo.from_where = 2000;
@@ -711,7 +628,6 @@ function hall(user_info, ws){
     }
 
     self.global_game_info = function(){
-        //console.log(__STACK__);
         return self.make_msg({op:"lobby/game/getUserGameInfo"});
     }
     
@@ -751,10 +667,6 @@ function hall(user_info, ws){
             }
             mul_desk[parseInt(item.desk_id)] = desk;
         });
-        //console.log(mul_desk);
-        for (k in mul_desk){
-            console.log(__LINE__, k);
-        }
         return mul_desk;
     };
 
@@ -763,12 +675,10 @@ function hall(user_info, ws){
             console.log(__LINE__, "error msg: " + msg);
             return false;
         }
-        //console.log('send :' + JSON.stringify(JSON.parse(msg), null, 2));
-        console.log(__LINE__, 'send: ' + msg);
-        //console.log('send: ' + JSON.parse(msg).op);
+        console.log(__LINE__, "send: " + msg);
         ws.send(msg, {binary:false, mask: true}, function(err){
             if(err){
-                console.log("ws send error: " + err);
+                console.log(__LINE__, "ws send error: " + err);
                 ws.close();
             }
         });

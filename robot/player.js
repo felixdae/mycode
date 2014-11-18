@@ -127,6 +127,8 @@ function msg_handler(user_info, ws){
                         self.sequence_id = parseInt(msg_obj.sequence_id);
                         req_msg = self.resp_global_game_info(msg_obj);
                     }
+                }else if(action == self.LC_BROADCAST_ACTION_TYPE_EMOTICON||action == self.LC_BROADCAST_ACTION_TYPE_CHARACTER){
+                    console.log('emotion or chat');
                 }else{//incremently
                     if (self.sequence_id === 0){
                         //console.log(__LINE__);
