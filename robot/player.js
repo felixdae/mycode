@@ -18,6 +18,8 @@ function msg_maker(user_info){
             to_sign += k + smo[k];
         }
         to_sign += self.user_info.md5key;
+        console.log(user_info);
+        console.log(to_sign);
 
         mo.urlsign = self.u.md5(to_sign);
         return JSON.stringify(mo);
