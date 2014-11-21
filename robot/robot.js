@@ -1,4 +1,4 @@
-function choose_room(user_info, room_info){
+function choose_room(room_info){
     var rooms = room_info.filter(function(item, index, arr){
         return item.match != 'sng' && item.min_chip<10000;
     });
@@ -56,9 +56,21 @@ function main_multi(){
     var sng_room_success = function(room_info){
         dispatch_robot('sng', room_info);
     }
+    var room_id = 0;
     var normal_room_success = function(room_info){
-        dispatch_robot('normal', room_info);
+        //dispatch_robot('normal', room_info);
+        var room = choose_room(room_info);
+        room_id = room.id;
+        var loginer = new authenticator(setting);
+        loginer.login(setting.name, u.md5(setting.pass), '', robot_start);
     }
+    
+    var robot_start = function(user_info){
+        var ws_init = require('./ws_init');
+        var player = new ws_init(setting, user_info, room_id);
+        player.play();
+    }
+
 
     var gamer = new authenticator(setting);
     gamer.get_game_room('sng', setting.name, u.md5(setting.pass), '', sng_room_success);
