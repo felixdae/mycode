@@ -1,9 +1,8 @@
 require('./utility');
 module.exports = ws_init;
 
-function ws_init(setting, user_info, room_info){
+function ws_init(setting, user_info, room_id){
     var self = this;
-    console.log(__LINE__);
 
     self.setting = setting;
     self.ws_path = 'ws://10.0.1.28:7681';
@@ -14,15 +13,6 @@ function ws_init(setting, user_info, room_info){
         self.ws_path = 'ws://ws.999com.com:17681';
     }
     self.user_info = user_info;
-    self.room_info = room_info;
-
-    self.choose_room = function (user_info, room_info){
-        var rooms = room_info.filter(function(item, index, arr){
-            return item.match != 'sng' && item.min_chip<10000;
-        });
-        var item = rooms[Math.floor(Math.random()*rooms.length)];
-        return item;
-    }
 
     self.play = function (){
 
@@ -44,8 +34,6 @@ function ws_init(setting, user_info, room_info){
                 //console.log(__LINE__);
                 var msg = handler.join_match(1, 4);
             }else{
-                var room = self.choose_room(self.user_info, self.room_info);
-                var room_id = room.id;
                 var msg = maker.sit_down(room_id);
             }
             console.log('send :' + msg);

@@ -1,3 +1,11 @@
+function choose_room(user_info, room_info){
+    var rooms = room_info.filter(function(item, index, arr){
+        return item.match != 'sng' && item.min_chip<10000;
+    });
+    var item = rooms[Math.floor(Math.random()*rooms.length)];
+    return item;
+}
+
 function main(){
     var u = require('./utility');
     var hl= require('./http_login');
@@ -9,12 +17,9 @@ function main(){
     if (process.argv.length > 5 && process.argv[5] == 'champion'){
         setting.champion= true;
     }
-    //console.log(setting);
-    //console.log(process.argv, setting.champion);
+
     var robot_start = function(user_info,room_info){
         var ws_init = require('./ws_init');
-        //console.log(JSON.stringify(user_info, null, 2));
-        //console.log(JSON.stringify(room_info, null, 2));
         var player = new ws_init(setting, user_info, room_info);
         player.play();
     }
@@ -24,3 +29,38 @@ function main(){
 }
 
 main();
+
+function main_multi(){
+    var u = require('./utility');
+    var authenticator = require('./http_login');
+
+    var setting = {champion:false};
+    setting.env = process.argv[2];
+    setting.name = process.argv[3];
+    setting.pass = process.argv[4];
+    if (process.argv.length > 5 && process.argv[5] == 'champion'){
+        setting.champion= true;
+    }
+    
+    var fs = require('fs');
+    var robot_buf = fs.readFileSync('./user.json');
+    var robot_list = JSON.parse(robot_buf);
+    var robot_in_room = {};//robot=>room
+    for (k in robot_list){
+        robot_in_room[k] = false;
+    }
+    
+    var dispatch_robot = function(game, room_info){
+        var robot_pass = 'ASD123@$888qwe';
+    }
+    var sng_room_success = function(room_info){
+        dispatch_robot('sng', room_info);
+    }
+    var normal_room_success = function(room_info){
+        dispatch_robot('normal', room_info);
+    }
+
+    var gamer = new authenticator(setting);
+    gamer.get_game_room('sng', setting.name, u.md5(setting.pass), '', sng_room_success);
+    gamer.get_game_room('normal', setting.name, u.md5(setting.pass), '', normal_room_success);
+}

@@ -74,9 +74,7 @@ function http_login(setting){
             console.log('error response: ' + response);
             return false;
         }
-        console.log(doing,__LINE__);
         if (doing == 1){//login
-            //console.log('--------------',resp_obj.game_money);
             self.user_info = resp_obj;
             self.user_info.from_where = self.from_where;
             if (resp_obj.retcode!=undefined){
@@ -90,30 +88,20 @@ function http_login(setting){
         }else if(doing == 2){
             self.user_info.md5key = self.rsa_decipher(resp_obj.md5Key);
             self.upload_key_done = true;
-            console.log(self.user_info.md5key,self.setting.champion);
-            self.get_user_info();
-            if (self.setting.champion != true){
-                console.log(__LINE__);
-                self.get_room_info();
-            } else {
-                if (self.get_user_info_done
-                        && self.get_normal_room_info_done
-                        && self.get_sng_room_info_done){
-                    //console.log(JSON.stringify(self.user_info,null,2));
-                    //console.log(JSON.stringify(self.room_info,null,2));
-                    self.login_success(self.user_info, self.room_info);
-                    //console.log('http all done');
-                }
+
+            if (self.type == 'login'){
+                self.login_success(self.user_info);
+            }else{
+                self.get_room_info(self.game);
             }
-        }else if(doing == 3||doing == 4||doing == 5){
-            if (doing == 3){
+        }else if(doing == 3){
+            if (self.game == 'sng'){
                 self.get_sng_room_info_done = true;
                 resp_obj.data.forEach(function(item, index, arr){
                     item.match = 'sng';
                     self.room_info.push(item);
                 });
-            }
-            if (doing == 4){
+            }else{
                 var k1,k2;
                 for (k1 in resp_obj.data){
                     for (k2 in resp_obj.data[k1]){
@@ -127,18 +115,7 @@ function http_login(setting){
                 }
                 self.get_normal_room_info_done = true;
             }
-            if (doing == 5){
-                self.user_info.game_money = resp_obj.game_money;
-                self.get_user_info_done = true;
-            }
-            if (self.get_user_info_done
-                    && self.get_normal_room_info_done
-                    && self.get_sng_room_info_done){
-                //console.log(JSON.stringify(self.user_info,null,2));
-                //console.log(JSON.stringify(self.room_info,null,2));
-                self.login_success(self.user_info, self.room_info);
-                //console.log('http all done');
-            }
+            self.room_success(self.room_info);
         }else{
             console.log(doing, response);
             throw 'unknown doing';
@@ -162,7 +139,15 @@ function http_login(setting){
         }).end(qs.stringify(params));
     }
 
+    self.get_game_room = function(game, name, pass, vcode, success){
+        self.type = 'room';
+        self.game = game;
+        self.room_success = success;
+        self.do_login(name, pass, vcode);
+    }
+
     self.login = function(name, pass, vcode, success){
+        self.type = 'login';
         self.login_success = success;
         self.do_login(name, pass, vcode);
     }
@@ -208,14 +193,13 @@ function http_login(setting){
         self.comm_request(req, params, 2, self.req_ok);
     }
 
-    self.get_room_info = function(){
+    self.get_room_info = function(game){
         var sng_route = 'lobby/game/getsngroomlist';
         var normal_route = 'lobby/game/getallroom';
 
         var req={
             hostname: self.http_hostname,
             port: self.http_port,
-            //path: '/index.php?r=' + route,
             method: 'POST',
             headers:{'Content-Type': 'application/x-www-form-urlencoded'}
         }
@@ -226,26 +210,28 @@ function http_login(setting){
             uid : self.user_info.uid,
             version: '1',
             from_where : self.from_where,
-            //r: route,
         };
 
-        params.r = sng_route;
-        req.path='/index.php?r=' + sng_route;
-        if (params.urlsign != undefined){
-            delete params.urlsign;
+        if (game == 'sng'){
+            params.r = sng_route;
+            req.path='/index.php?r=' + sng_route;
+            if (params.urlsign != undefined){
+                delete params.urlsign;
+            }
+            params.urlsign = self.make_urlsign(params, self.user_info.md5key);
+            self.comm_request(req, params, 3, self.req_ok);
+        }else{
+            params.r = normal_route;
+            req.path='/index.php?r=' + normal_route;
+            if (params.urlsign != undefined){
+                delete params.urlsign;
+            }
+            params.urlsign = self.make_urlsign(params, self.user_info.md5key);
+            self.comm_request(req, params, 3, self.req_ok);
         }
-        params.urlsign = self.make_urlsign(params, self.user_info.md5key);
-        self.comm_request(req, params, 3, self.req_ok);
-
-        params.r = normal_route;
-        req.path='/index.php?r=' + normal_route;
-        if (params.urlsign != undefined){
-            delete params.urlsign;
-        }
-        params.urlsign = self.make_urlsign(params, self.user_info.md5key);
-        self.comm_request(req, params, 4, self.req_ok);
     }
 
+    //currently useless
     self.get_user_info = function(){
         self.get_user_info_done = true;
         return true;
