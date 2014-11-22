@@ -14,27 +14,32 @@ function ws_init(setting, user_info, room_id){
     }
     self.user_info = user_info;
 
-    self.play = function (){
+    self.play = function (game){
 
+        var room_type = 1;
+        if (game == 'sng'){
+            room_type = 2;
+        } else if(game == 'champion'){
+            room_type = 4;
+        }
         var WebSocket = require('ws');
         var ws = new WebSocket(self.ws_path);
         var maker;
         var handler;
-        if (self.setting.champion== true){
-            var player = require('./champion_player');
-            maker = new player.msg_maker(self.user_info, 4);
-            handler = new player.hall(self.user_info, ws);
-        }else{
-            var player = require('./player');
-            maker = new player.msg_maker(self.user_info);
-            handler = new player.msg_handler(self.user_info, ws);
-        }
+        //if (self.setting.champion== true){
+        var player = require('./champion_player');
+        maker = new player.msg_maker(self.user_info);
+        handler = new player.hall(self.user_info, ws);
+        //}else{
+        //    var player = require('./player');
+        //    maker = new player.msg_maker(self.user_info);
+        //    handler = new player.msg_handler(self.user_info, ws);
+        //}
         ws.on('open', function (){
             if (self.setting.champion== true){
-                //console.log(__LINE__);
-                var msg = handler.join_match(1, 4);
+                var msg = handler.join_match(1, room_type);
             }else{
-                var msg = maker.sit_down(room_id);
+                var msg = maker.sit_down(room_id, room_type);
             }
             console.log('send :' + msg);
             ws.send(msg, {binary:false, mask: true}, function(err){

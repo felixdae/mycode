@@ -64,9 +64,10 @@ function http_login(setting){
         var resp_obj;
         try{
             resp_obj = JSON.parse(response);
+            //console.log(response);
         }catch(e){
             console.log('exception: ' + e);
-            console.log(response);
+            //console.log(response);
             return false;
         }
         var retcode = (resp_obj.retcode===undefined? resp_obj.retCode:resp_obj.retcode);
@@ -132,6 +133,9 @@ function http_login(setting){
                 body += chunk;
             });
             res.on('end', function () {
+         //       console.log(__LINE__);
+         //   console.log(req, params);
+         //       console.log(body);
                 success(doing, body);
             });
         }).on('error', function(e) {
@@ -255,7 +259,7 @@ function http_login(setting){
             op: 'info',
         };
         params.urlsign = self.make_urlsign(params, self.user_info.md5key);
-        console.log(__LINE__);
+        //console.log(__LINE__);
         self.comm_request(req, params, 5, self.req_ok);
     }
 }

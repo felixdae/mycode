@@ -21,6 +21,7 @@ function msg_maker(user_info){
         console.log(user_info);
         console.log(to_sign);
 
+        console.log('-----------------------------------');
         mo.urlsign = self.u.md5(to_sign);
         return JSON.stringify(mo);
     }

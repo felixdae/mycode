@@ -28,8 +28,7 @@ function main(){
     loginer.login(setting.name, u.md5(setting.pass), '', robot_start);
 }
 
-main();
-
+//main();
 function main_multi(){
     var u = require('./utility');
     var authenticator = require('./http_login');
@@ -68,11 +67,13 @@ function main_multi(){
     var robot_start = function(user_info){
         var ws_init = require('./ws_init');
         var player = new ws_init(setting, user_info, room_id);
-        player.play();
+        var room_type = 1;
+        player.play(room_type);
     }
 
-
     var gamer = new authenticator(setting);
-    gamer.get_game_room('sng', setting.name, u.md5(setting.pass), '', sng_room_success);
+    //gamer.get_game_room('sng', setting.name, u.md5(setting.pass), '', sng_room_success);
     gamer.get_game_room('normal', setting.name, u.md5(setting.pass), '', normal_room_success);
 }
+
+main_multi();
