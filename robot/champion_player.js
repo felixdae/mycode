@@ -1,12 +1,12 @@
 require('./utility');
-exports.req_maker = req_maker;
-exports.resp_parser = resp_parser;
-exports.hall = hall;
+//exports.req_maker = req_maker;
+//exports.resp_parser = resp_parser;
+exports.game = game;
 
 function req_maker(user_info){//desk
     var self = this;
-    self.u = require('./utility');
     self.user_info = user_info;
+    self.u = require('./utility');
 
     self.make_msg = function (mo){
         mo.session_id = self.user_info.session_id;
@@ -28,22 +28,22 @@ function req_maker(user_info){//desk
             to_sign += k + smo[k];
         }
         to_sign += self.user_info.md5key;
-        console.log(user_info, to_sign);
+        //console.log(user_info, to_sign);
 
         mo.urlsign = self.u.md5(to_sign);
         return JSON.stringify(mo);
     }
 
-    self.bet = function(chip){
-        return self.make_msg({op:"lobby/game/callbet", 'chip':chip, action:1});
+    self.bet = function(chip, desk_id){
+        return self.make_msg({op:"lobby/game/callbet", 'chip':chip, action:1, deskId:desk_id});
     }
 
-    self.fold = function(){
-        return self.make_msg({op:"lobby/game/callbet", 'chip':0, action:2});
+    self.fold = function(desk_id){
+        return self.make_msg({op:"lobby/game/callbet", 'chip':0, action:2, deskId:desk_id});
     }
 
-    self.left = function(){
-        return self.make_msg({op:"lobby/game/left"});
+    self.left = function(desk_id){
+        return self.make_msg({op:"lobby/game/left", deskId:desk_id});
     }
     
     self.sit_down = function(room_id, room_type){
@@ -57,14 +57,48 @@ function req_maker(user_info){//desk
         return self.make_msg({op:"lobby/game/JoinMatch"});
     }
 
-    self.global_game_info = function(){
+    self.global_game_info = function(desk_id){
+        if (desk_id != undefined)
+            return self.make_msg({op:"lobby/game/getUserGameInfo", deskId:desk_id});
         return self.make_msg({op:"lobby/game/getUserGameInfo"});
     }
 }
 
 function resp_parser(user_info){
     var self = this;
-    self.maker = new req_maker(user_info);
+    self.user_info = user_info;
+    self.req_maker = new req_maker(user_info);
+
+    self.resp_global_game_info = function(msg_obj){
+        mul_desk = {};
+        msg_obj.list.forEach(function(item){
+            if (item.action.uid != self.user_info.uid){
+                return mul_desk;
+            }
+
+            var desk = {};
+            desk.match_id = item.inc.desk.match_id;
+            desk.desk_id = item.inc.desk.desk_id;
+            //desk.desk_id = 1;//item.inc.desk.desk_id;
+            desk.sequence_id = 0;//item.sequence_id;
+            //desk.sequence_id = 0;//item.sequence_id;
+            desk.dSeatNum = item.action.seat_num;
+            desk.room_type = item.inc.desk.room_type;
+
+            if(item.inc.desk !== undefined){
+                self.set_desk(item.inc.desk, desk);
+            }
+            if(item.inc.board !== undefined){
+                self.set_board(item.inc.board, desk);
+            }
+            if(item.inc.players !== undefined){
+                self.set_players(item.inc.players, desk);
+            }
+            mul_desk[parseInt(item.desk_id)] = desk;
+            //mul_desk[1] = desk;
+        });
+        return mul_desk;
+    };
 
     self.set_desk = function(deskArr, desk){
         desk.dBoardID=deskArr["board_id"];
@@ -90,7 +124,7 @@ function resp_parser(user_info){
     self.set_players = function(players, desk){
         desk.dPlayerArr=players;
         desk.dPlayerArr.forEach(function(item, index, arr){
-            if (item.uid == desk.user_info.uid){
+            if (item.uid == self.user_info.uid){
                 desk.dUChip=item["chip"];
                 desk.dUBetchips=item["betchips"];
                 desk.dUserStatus=item["user_status"];
@@ -101,34 +135,34 @@ function resp_parser(user_info){
         });
     }
 
-    self.resp_sit_down = function(msg_obj){
-        console.log(__LINE__, "resp_sit_down?");
-        return false;
-    //    if (self.user_info != msg_obj.action.uid){
-    //        return '';
-    //    }
-    //    self.dSeatNum = msg_obj.action.seat_num;
+    self.resp_sit_down = function(msg_obj, desk){
+        //console.log(__LINE__, "resp_sit_down?");
+        //return false;
+        if (self.user_info.uid != msg_obj.action.uid){
+            return '';
+        }
+        desk.dSeatNum = msg_obj.action.seat_num;
 
-    //    if (msg_obj.action.broadcast_type == 0)
-    //    {
-    //        //入座增量包
-    //        self.dRoomType=msg_obj.action["room_type"];
-    //        self.dUserStatus=msg_obj.inc["user_status"];
-    //        self.dUChip=msg_obj.inc["chip"];
-    //        self.dUBetchips=msg_obj.inc["betchips"];
-    //    }
-    //    else
-    //    {
-    //        //入座全量包
-    //        if (msg_obj.inc.desk != undefined){
-    //            self.set_desk(msg_obj.inc.desk);
-    //        }
+        if (msg_obj.action.broadcast_type == 0)
+        {
+            //入座增量包
+            desk.dRoomType=msg_obj.action["room_type"];
+            desk.dUserStatus=msg_obj.inc["user_status"];
+            desk.dUChip=msg_obj.inc["chip"];
+            desk.dUBetchips=msg_obj.inc["betchips"];
+        }
+        else
+        {
+            //入座全量包
+            if (msg_obj.inc.desk != undefined){
+                desk.set_desk(msg_obj.inc.desk);
+            }
 
-    //        if (msg_obj.inc.players != undefined){
-    //            self.set_players(msg_obj.inc.players);
-    //        }
-    //    }
-    //    return '';
+            if (msg_obj.inc.players != undefined){
+                desk.set_players(msg_obj.inc.players);
+            }
+        }
+        return '';
     };
 
     self.resp_start_game = function(msg_obj, desk){
@@ -150,7 +184,7 @@ function resp_parser(user_info){
                 desk.dUBetchips = item.betchips;
             }
         });
-        return desk.maker.global_game_info();
+        return self.req_maker.global_game_info(msg_obj.desk_id);
     };
 
     self.resp_get_holdcard = function(msg_obj, desk){
@@ -160,15 +194,15 @@ function resp_parser(user_info){
         return '';
     };
 
-    self.check = function(){
-        return self.maker.bet(0);
+    self.check = function(desk){
+        return self.req_maker.bet(0, desk.desk_id);
     }
 
-    self.fold = function(){
-        return self.maker.fold();
+    self.fold = function(desk){
+        return self.req_maker.fold(desk.desk_id);
     }
 
-    self.raise = function(){
+    self.raise = function(desk){
         var rand_chip = parseInt(1+9*Math.random())*desk.dBoardBigBlindChip;
         var chip = 0;
         if(desk.dBoardRaiseChip == 0){
@@ -184,10 +218,10 @@ function resp_parser(user_info){
         if(chip>desk.dUChip){
             chip=desk.dUChip;
         }
-        return self.maker.bet(chip);
+        return self.req_maker.bet(chip, desk.desk_id);
     }
 
-    self.call = function(){
+    self.call = function(desk){
         var chip = 0;
         if (desk.dBoardMaxRoundChip > desk.dBoardBigBlindChip){
             chip = desk.dBoardMaxRoundChip - desk.dUBetchips;
@@ -197,29 +231,29 @@ function resp_parser(user_info){
         if (chip > desk.dUChip){
             chip = desk.dUChip;
         }
-        return desk.maker.bet(chip);
+        return self.req_maker.bet(chip, desk.desk_id);
     }
 
-    self.think = function(){
+    self.think = function(desk){
         var r = Math.random();
         if(r<0.4){
             if (desk.dBoardMaxRoundChip > 0){
-                return self.call();
+                return self.call(desk);
             }else{
                 //console.log(__LINE__);
-                return self.check();
+                return self.check(desk);
             }
         }else if(r<0.6){
-            return self.call();
+            return self.call(desk);
         }else if(r<0.95){
             if (desk.dBoardMaxRoundChip > 0){
-                return self.fold();
+                return self.fold(desk);
             }else{
                 //console.log(__LINE__);
-                return self.check();
+                return self.check(desk);
             }
         }else{
-            return self.raise();
+            return self.raise(desk);
         }
     }
 
@@ -230,8 +264,9 @@ function resp_parser(user_info){
         desk.dBoardRaiseChip=msg_obj.inc["raise_chip"];
         desk.dBoardMaxRoundChip=msg_obj.inc["max_round_chip"];
 
-        if(desk.user_info.uid == msg_obj.action["uid"]){
-            return self.think();
+        //console.log(__LINE__, desk);
+        if(self.user_info.uid == msg_obj.action["uid"]){
+            return self.think(desk);
         }
         return '';
     };
@@ -272,7 +307,7 @@ function resp_parser(user_info){
     };
 
     self.resp_raise = function(msg_obj, desk){
-        if(desk.user_info.uid==msg_obj.action["uid"]){
+        if(self.user_info.uid==msg_obj.action["uid"]){
             desk.dUserStatus=msg_obj.action["user_status"];
             desk.dUChip=msg_obj.inc["chip"];
             desk.dUBetchips=msg_obj.inc["betchips"];
@@ -289,25 +324,6 @@ function resp_parser(user_info){
         return '';
     };
 
-    self.end_board = function(){
-        var d = new Date();
-        var ts = (d.getTime()-d.getMilliseconds())/1000;
-        if (ts > self.service_end_time){
-            //console.log('------------------left');
-            return self.maker.left();
-        }else{
-            return '';
-            if (desk.dRoomType == 1){
-                //if (Math.random()<0.1){
-                //    return self.maker.change_desk();
-                //}
-                return '';
-            }
-            //console.log('------------------sit_down');
-            return self.maker.sit_down(self.dRoomId);
-        }
-    }
-
     self.resp_end_board = function(msg_obj, desk){
         if (msg_obj.inc["players"] !== undefined){
             msg_obj.inc["players"].forEach(function(item, index, arr){
@@ -316,21 +332,21 @@ function resp_parser(user_info){
                 }
             });
         }
-        return self.end_board();
+        //return self.end_board(desk);
     };
 
-    self.resp_stand_up = function(msg_obj){
+    self.resp_stand_up = function(msg_obj, desk){
         return '';
     };
 
-    self.resp_change_left = function(msg_obj){
+    self.resp_change_left = function(msg_obj, desk){
         if(self.user_info.uid==msg_obj.action["uid"]){
             desk.dSequenceID=0;
         }
         return '';
     };
 
-    self.resp_left = function(msg_obj){
+    self.resp_left = function(msg_obj, desk){
         if(self.user_info.uid==msg_obj.action["uid"]){
             desk.dSequenceID=0;
             //ws.close();
@@ -339,11 +355,11 @@ function resp_parser(user_info){
         return '';
     };
 
-    self.resp_sng_match_end_left = function(msg_obj){
-        return self.resp_host_left(msg_obj);
+    self.resp_sng_match_end_left = function(msg_obj, desk){
+        return self.resp_host_left(msg_obj, desk);
     };
 
-    self.resp_host_left = function(msg_obj){
+    self.resp_host_left = function(msg_obj, desk){
         if(self.user_info.uid==msg_obj.action["uid"]){
             desk.dSequenceID=0;
             return self.end_board();
@@ -351,36 +367,38 @@ function resp_parser(user_info){
         return '';
     };
 
-    self.resp_monitor_sit_down = function(msg_obj){
-        return self.resp_host_left(msg_obj);
+    self.resp_monitor_sit_down = function(msg_obj, desk){
+        return self.resp_host_left(msg_obj, desk);
     };
 
-    self.resp_monitor_stand_up = function(msg_obj){
-        return self.resp_host_left(msg_obj);
+    self.resp_monitor_stand_up = function(msg_obj, desk){
+        return self.resp_host_left(msg_obj, desk);
     };
 
 
-    self.resp_buy_chip = function(msg_obj){
+    self.resp_buy_chip = function(msg_obj, desk){
         if(msg_obj.inc["seat_num"]==desk.dSeatNum){
             desk.dUChip=msg_obj.inc["chip"];
         }
         return '';
     };
-
-    self.global_game_info = function(){
-        return self.maker.global_game_info();
-    };
 }
 
-function game(setting, user_info, game_type){
+function game(setting, user_info, game_type, check_status){
     var self = this;
     self.setting = setting;
     self.user_info = user_info;
     self.game_type = game_type;
+    self.end_func = check_status;
+
+    var fd=new Date();
+    self.service_end_time = parseInt(fd.getTime()/1000) + 2*60;
+    console.log(__LINE__, fd);
 
     self.resp_parser = new resp_parser(user_info);
 
     self.start_game = function(room_id){
+        self.room_id = room_id;
         self.ws_path = 'ws://10.0.1.28:7681';
         if (setting.env == 'test'){
             self.ws_path = 'ws://10.0.1.28:7682';
@@ -389,50 +407,51 @@ function game(setting, user_info, game_type){
             self.ws_path = 'ws://ws.999com.com:17681';
         }
         var WebSocket = require('ws');
-        var ws = new WebSocket(self.ws_path);
+        self.ws = new WebSocket(self.ws_path);
 
-        ws.on('open', function (){
+        self.ws.on('open', function (){
             var sng_room_type = 2;
             var normal_room_type = 1;
             var champion_room_type = 4;
             var first_req = '';
             if (self.game_type == 'normal'){
-                first_req = self.sit_down(room_id, normal_room_type);
+                first_req = self.sit_down(self.room_id, normal_room_type);
             }else if(self.game_type == 'sng'){
-                first_req = self.sit_down(room_id, sng_room_type);
+                first_req = self.sit_down(self.room_id, sng_room_type);
             }else if(self.game_type == 'champion'){
-                var match_id = room_id;
+                var match_id = self.room_id;
                 first_req = self.join_match(match_id, champion_room_type);
             }else{
                 console.log(__LINE__, "unknown game_type");
                 return;
             }
-            console.log('send :' + first_req);
-            ws.send(first_req, {binary:false, mask: true}, function(err){
-                if(err){
-                    console.log("ws send error: " + err);
-                    ws.close();
-                }
-            });
+            //console.log(__LINE__ 'send :' + first_req);
+            //self.ws.send(first_req, {binary:false, mask: true}, function(err){
+            //    if(err){
+            //        console.log("ws send error: " + err);
+            //        self.ws.close();
+            //    }
+            //});
+            self.ws_send(first_req);
         });
-        ws.on('close', function (){
+        self.ws.on('close', function (){
             console.log('ws closed');
         });
-        ws.on('message', function (data, flags) {
-            self.parse(data);
+        self.ws.on('message', function (data, flags) {
+            self.play(data);
         });
     }
 
     self.sit_down = function(room_id, room_type){
-        return self.resp_parser.req_maker.sitdown(room_id, room_type);
+        return self.resp_parser.req_maker.sit_down(room_id, room_type);
     }
 
     self.join_match = function(match_id, room_type){
-        return self.resp_parser.req_maker.sitdown(match_id, room_type);
+        return self.resp_parser.req_maker.sit_down(match_id, room_type);
     }
 
-    self.global_game_info = function(){
-        return self.resp_parser.req_maker.global_game_info();
+    self.global_game_info = function(desk_id){
+        return self.resp_parser.req_maker.global_game_info(desk_id);
     }
 
     self.LC_BROADCAST_ACTION_TYPE_START_GAME = 1; //开局
@@ -475,96 +494,85 @@ function game(setting, user_info, game_type){
     self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_SNG_MATCH_END = 38; //离开房间(sng比赛结束强制离开)
 
     self.desk_list = {};
-    self.simple_parse(msg_obj, desk){
-        console.log("desk id: " + desk.dDeskID + " uid: " + self.user_info.uid + " left chip: "
-                + desk.dUChip + " board id: " + desk.dBoardID);
-        console.log("action: "+msg_obj.action.action);
+    self.simple_parse = function(msg_obj, desk){
+        console.log(__LINE__, "action: "+ msg_obj.action.action + " dDeskID: " + desk.dDeskID + " uid: "
+                + self.user_info.uid + " dUChip: " + desk.dUChip + " dBoardID: " + desk.dBoardID);
+        //console.log(__LINE__, "action: "+ msg_obj.action.action);
         if (msg_obj.retCode !== 0){
-            console.log('retcode: ' + msg_obj.retCode);
-            return self.global_game_info();
-        }
-        if (msg_obj.sequence_id === undefined){
-            console.log('no sequence_id');
-            return self.global_game_info();
-        }
-        if(parseInt(msg_obj.sequence_id) <= parseInt(desk.sequence_id)){
-            console.log('incremently sequence_id error: ' + msg_obj.sequence_id + ' vs ' + desk.sequence_id);
-            return self.global_game_info();
-        }
-        if(parseInt(msg_obj.sequence_id) > parseInt(desk.sequence_id) + 1){
-            return self.global_game_info();
+            console.log(__LINE__, 'retcode: ' + msg_obj.retCode);
+            return self.global_game_info(desk.dDeskID);
         }
 
         var req_msg;
         var action = msg_obj.action.action;
-        desk.sequence_id = parseInt(msg_obj.sequence_id);
+        //desk.sequence_id = parseInt(msg_obj.sequence_id);
         switch(action)
         {
             case self.LC_BROADCAST_ACTION_TYPE_EMOTICON:
             case self.LC_BROADCAST_ACTION_TYPE_CHARACTER:
                 break;
             case self.LC_BROADCAST_ACTION_TYPE_SITDOWN:
-                req_msg = self.resp_sit_down(msg_obj);
+                req_msg = self.resp_parser.resp_sit_down(msg_obj, desk);
                 break;
             case self.LC_BROADCAST_ACTION_TYPE_START_GAME:
-                req_msg = self.resp_start_game(msg_obj);
+                req_msg = self.resp_parser.resp_start_game(msg_obj, desk);
                 break;
             case self.LC_BROADCAST_ACTION_TYPE_HOLE_CARD:
-                req_msg = self.resp_get_holdcard(msg_obj);
+                req_msg = self.resp_parser.resp_get_holdcard(msg_obj, desk);
                 break;
             case self.LC_BROADCAST_ACTION_TYPE_NOTICE_ACTIVE_USER:
-                req_msg = self.resp_notify_active_user(msg_obj);
-                console.log("big blind: " + self.dBoardBigBlindChip + " board raise chip: " + self.dBoardRaiseChip +
-                        " max round chip: " + self.dBoardMaxRoundChip + " last bet chip:" + self.dUBetchips);
+                req_msg = self.resp_parser.resp_notify_active_user(msg_obj, desk);
+                console.log(__LINE__, "dDeskID: " + desk.dDeskID + " dBoardBigBlindChip: " + desk.dBoardBigBlindChip + " dBoardRaiseChip: " + desk.dBoardRaiseChip +
+                        " dBoardMaxRoundChip: " + desk.dBoardMaxRoundChip + " dUBetchips:" + desk.dUBetchips);
                 break;
             case self.LC_BROADCAST_ACTION_TYPE_FOLD:
-                req_msg = self.resp_fold(msg_obj);
+                req_msg = self.resp_parser.resp_fold(msg_obj, desk);
                 break;
             case self.LC_BROADCAST_ACTION_TYPE_CHECK:
-                req_msg = self.resp_check(msg_obj);
+                req_msg = self.resp_parser.resp_check(msg_obj, desk);
                 break;
             case self.LC_BROADCAST_ACTION_TYPE_ALLIN:
-                req_msg = self.resp_allin(msg_obj);
+                req_msg = self.resp_parser.resp_allin(msg_obj, desk);
                 break;
             case self.LC_BROADCAST_ACTION_TYPE_CALL:
             case self.LC_BROADCAST_ACTION_TYPE_BET:
-                req_msg = self.resp_bet(msg_obj);
+                req_msg = self.resp_parser.resp_bet(msg_obj, desk);
                 break;
             case self.LC_BROADCAST_ACTION_TYPE_RAISE:
-                req_msg = self.resp_raise(msg_obj);
+                req_msg = self.resp_parser.resp_raise(msg_obj, desk);
                 break;
             case self.LC_BROADCAST_ACTION_TYPE_NOTICE_SIDE_POT:
-                req_msg = self.resp_notify_side_pot(msg_obj);
+                req_msg = self.resp_parser.resp_notify_side_pot(msg_obj, desk);
                 break;
             case self.LC_BROADCAST_ACTION_TYPE_END_BOARD:
-                req_msg = self.resp_end_board(msg_obj);
+                req_msg = self.resp_parser.resp_end_board(msg_obj, desk);
                 break;
             case self.LC_BROADCAST_ACTION_TYPE_STANDUP:
-                req_msg = self.resp_stand_up(msg_obj);
+                req_msg = self.resp_parser.resp_stand_up(msg_obj, desk);
                 break;
             case self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_CHANGE_DESK:
-                req_msg = self.resp_change_left(msg_obj);
+                req_msg = self.resp_parser.resp_change_left(msg_obj, desk);
                 break;
             case self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM:
-                req_msg = self.resp_left(msg_obj);
+                req_msg = self.resp_parser.resp_left(msg_obj, desk);
                 break;
             case self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_SNG_MATCH_END:
-                req_msg = self.resp_sng_match_end_left(msg_obj);
+                req_msg = self.resp_parser.resp_sng_match_end_left(msg_obj, desk);
                 break;
             case self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_HOSTING:
-                req_msg = self.resp_host_left(msg_obj);
+                req_msg = self.resp_parser.resp_host_left(msg_obj, desk);
                 break;
             case self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_SIT_DOWN_MONITOR:
-                req_msg = self.resp_monitor_sit_down(msg_obj);
+                req_msg = self.resp_parser.resp_monitor_sit_down(msg_obj, desk);
                 break;
             case self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_STANDUP_MONITOR:
-                req_msg = self.resp_monitor_stand_up(msg_obj);
+                req_msg = self.resp_parser.resp_monitor_stand_up(msg_obj, desk);
                 break;
             case self.LC_BROADCAST_ACTION_TYPE_INIT_USERGAMEINFO:
-                console.log(__LINE__, "self.LC_BROADCAST_ACTION_TYPE_INIT_USERGAMEINFO here");
+                console.log(__LINE__, "LC_BROADCAST_ACTION_TYPE_INIT_USERGAMEINFO here");
                 break;
             case self.LC_BROADCAST_ACTION_TYPE_EXCHANGE_CHIP:
-                req_msg = self.resp_buy_chip(msg_obj);
+                req_msg = self.resp_parser.resp_buy_chip(msg_obj, desk);
                 break;
             default:
                 break;
@@ -575,56 +583,134 @@ function game(setting, user_info, game_type){
     //board end
     //game end
     //need to delay
-    self.parse = function(resp){
+    self.parse = function(msg){
+        //console.log(__LINE__, msg);
         var msg_obj;
         try{
             msg_obj = JSON.parse(msg);
         }catch(e){
-            console.log('exception: ' + e);
-            ws.close();
+            console.log(__LINE__, 'exception: ' + e);
+            //return self.global_game_info();
+            self.ws_send(self.global_game_info());
             return false;
         }
         if (msg_obj.retCode !== 0){
             console.log(__LINE__, 'retcode: ' + msg_obj.retCode);
-            return self.global_game_info();
+            //return self.global_game_info();
+            self.ws_send(self.global_game_info());
+            return false;
         }
         var action = msg_obj.action.action;
         if (action == self.LC_BROADCAST_ACTION_TYPE_INIT_USERGAMEINFO) {
-            self.desk_list = self.resp_global_game_info(msg_obj);
+            var t_list = self.resp_parser.resp_global_game_info(msg_obj);
+            for (k in t_list){
+                self.desk_list[k] = t_list[k];
+            }
             return true;
         }
 
         var desk_id = parseInt(msg_obj.desk_id);
+        //desk_id = 1;
         var desk = self.desk_list[desk_id];
         if (desk == undefined){
-            console.log(__LINE__, "no desk for desk_id: " + desk_id + ", " + JSON.stringify(self.desk_list));
-            return self.global_game_info();
-        } else {
-            if (action == LC_BROADCAST_ACTION_TYPE_CHARACTER
-                    || action == LC_BROADCAST_ACTION_TYPE_EMOTICON) {
-                console.log('emotion or chat');
-                return '';
+            console.log(__LINE__, "no desk for desk_id: " + desk_id);
+            //return self.global_game_info(desk_id);
+            self.ws_send(self.global_game_info(desk_id));
+            return false;
+        } 
+
+        if (msg_obj.sequence_id === undefined){
+            console.log(__LINE__, 'no sequence_id');
+            return self.global_game_info(desk.dDeskID);
+        }
+        if (desk.sequence_id != 0){
+            if(parseInt(msg_obj.sequence_id) <= parseInt(desk.sequence_id)){
+                console.log(__LINE__, 'incremently sequence_id error: ' + msg_obj.sequence_id + ' vs ' + desk.sequence_id);
+                return self.global_game_info(desk.dDeskID);
             }
-            var sleep = 0;
-            if (action == self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM){//board end
-            } else if (action == self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_SNG_MATCH_END){//game end
-            } else if (action == self.LC_BROADCAST_ACTION_TYPE_NOTICE_ACTIVE_USER){//need to delay
-                var r = Math.random();
-                if(r<0.1){
-                    sleep = 1;
-                }else if(r<0.45){
-                    sleep = 3;
-                }else if(r<0.85){
-                    sleep = 5;
-                }else if(r<0.95){
-                    sleep = 7;
-                }else{
-                    sleep = 8;
-                }
-            } else {
-                return self.simple_parse(msg, desk);
+            if(parseInt(msg_obj.sequence_id) > parseInt(desk.sequence_id) + 1){
+                console.log(__LINE__, msg_obj.sequence_id + ' vs ' + parseInt(desk.sequence_id));
+                return self.global_game_info(desk.dDeskID);
             }
         }
+        desk.sequence_id = parseInt(msg_obj.sequence_id);
+
+        if (action == self.LC_BROADCAST_ACTION_TYPE_CHARACTER
+                || action == self.LC_BROADCAST_ACTION_TYPE_EMOTICON) {
+            console.log(__LINE__, 'action: ' + action + ' emotion or chat');
+            return true;
+        }
+        if (action == self.LC_BROADCAST_ACTION_TYPE_END_BOARD
+                || action == self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_HOSTING
+                || action == self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_STANDUP_MONITOR
+                || action == self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_SIT_DOWN_MONITOR){//board end
+            self.resp_parser.resp_end_board(msg_obj, desk);
+            console.log(__LINE__, 'action: ' + action);
+
+            var now = new Date();
+            console.log(__LINE__, now);
+            var ts = parseInt(now.getTime()/1000);
+            if (ts > self.service_end_time){
+                //return self.resp_parser.req_maker.left(desk.desk_id);
+                self.ws_send(self.resp_parser.req_maker.left(desk.desk_id));
+                return false;
+            }else{
+                //return self.resp_parser.req_maker.sit_down(self.room_id);
+                //self.ws_send(self.resp_parser.req_maker.sit_down(self.room_id));
+                return false;
+            }
+        } else if (action == self.LC_BROADCAST_ACTION_TYPE_STANDUP || action == self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM){
+            console.log(__LINE__, 'action: ' + action + ' LC_BROADCAST_ACTION_TYPE_STANDUP or LC_BROADCAST_ACTION_TYPE_LEFT_ROOM, close');
+            delete self.desk_list.desk_id;
+            self.ws.close();
+            self.end_func();
+            return true;
+        } else if (action == self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_SNG_MATCH_END){//game end
+        } else if (action == self.LC_BROADCAST_ACTION_TYPE_NOTICE_ACTIVE_USER){//need to delay
+            self.sleep = 0;
+            var r = Math.random();
+            if(r<0.1){
+                self.sleep = 1;
+            }else if(r<0.45){
+                self.sleep = 3;
+            }else if(r<0.85){
+                self.sleep = 5;
+            }else if(r<0.95){
+                self.sleep = 7;
+            }else{
+                self.sleep = 8;
+            }
+            //return self.simple_parse(msg_obj, desk);
+            //self.ws_send(self.simple_parse(msg_obj, desk));
+            self.delay_send_req(self.simple_parse(msg_obj, desk), self.sleep);
+            return true;
+        } else {
+            //return self.simple_parse(msg_obj, desk);
+            self.ws_send(self.simple_parse(msg_obj, desk));
+            return true;
+        }
+    }
+    
+    self.play = function(msg){
+        var ret_code = self.parse(msg);
+    }
+
+    self.delay_send_req = function(req, delay){
+        setTimeout(self.ws_send, delay*1000, req);
+    }
+
+    self.ws_send= function(msg){
+        if (!msg){
+            //console.log(__LINE__, "error msg: " + msg);
+            return false;
+        }
+        //console.log(__LINE__, 'send: ' + msg);
+        self.ws.send(msg, {binary:false, mask: true}, function(err){
+            if(err){
+                console.log(__LINE__, "ws send error: " + err);
+                self.ws.close();
+            }
+        });
     }
 }
 //setTimeout(self.send_msg, sleep*1000, req_msg);

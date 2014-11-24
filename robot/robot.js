@@ -65,10 +65,12 @@ function main_multi(){
     }
     
     var robot_start = function(user_info){
-        var ws_init = require('./ws_init');
-        var player = new ws_init(setting, user_info, room_id);
-        var room_type = 1;
-        player.play(room_type);
+        //console.log(__LINE__, user_info);
+        var game_module = require('./champion_player');
+        var player = new game_module.game(setting, user_info, 'normal', function(){
+            console.log(__LINE__, 'hello there, end function');
+        });
+        player.start_game(room_id);
     }
 
     var gamer = new authenticator(setting);
