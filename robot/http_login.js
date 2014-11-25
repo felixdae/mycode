@@ -1,15 +1,15 @@
 module.exports = http_login;
 
-function http_login(setting){
+function http_login(env){
     var self = this;
 
-    self.setting = setting;
+    //self.setting = setting;
     self.http_hostname = '10.0.1.27';
     self.http_port = 80;
     self.from_where = 2000;
-    if (setting.env == 'test'){
+    if (env == 'test'){
         self.http_hostname = '10.0.1.23';
-    }else if(setting.env == 'release'){
+    }else if(env == 'release'){
         self.http_hostname = 'www.999com.com';
     }
 
@@ -21,10 +21,10 @@ function http_login(setting){
     self.upload_key_done = false;
     self.get_sng_room_info_done = false;
     self.get_normal_room_info_done = false;
-    if (self.setting.champion){
-        self.get_sng_room_info_done = true;
-        self.get_normal_room_info_done = true;
-    }
+//    if (self.setting.champion){
+//        self.get_sng_room_info_done = true;
+//        self.get_normal_room_info_done = true;
+//    }
     self.get_user_info_done = false;
 
     self.pub_file = './var/rsa_public_key.pem';

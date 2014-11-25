@@ -129,6 +129,7 @@ function resp_parser(user_info){
                 desk.dUBetchips=item["betchips"];
                 desk.dUserStatus=item["user_status"];
                 if(item["hole_card"] !== undefined){
+                    //console.log(__LINE__, item['hole_card']);
                     desk.dHoleCardArr=item["hole_card"];
                 }
             }
@@ -189,6 +190,7 @@ function resp_parser(user_info){
 
     self.resp_get_holdcard = function(msg_obj, desk){
         if(msg_obj.inc["players"][0]["uid"]==self.user_info.uid){
+            //console.log(__LINE__, msg_obj.inc['players'][0]['hole_card']);
             desk.dHoleCardArr=msg_obj.inc["players"][0]["hole_card"];
         }
         return '';
@@ -391,13 +393,10 @@ function game(setting, user_info, game_type, check_status){
     self.game_type = game_type;
     self.end_func = check_status;
 
-    var fd=new Date();
-    self.service_end_time = parseInt(fd.getTime()/1000) + 2*60;
-    console.log(__LINE__, fd);
-
     self.resp_parser = new resp_parser(user_info);
-
-    self.start_game = function(room_id){
+    self.start_game = function(room_id, duration){
+        var fd = new Date();
+        self.service_end_time = parseInt(fd.getTime()/1000) + duration;
         self.room_id = room_id;
         self.ws_path = 'ws://10.0.1.28:7681';
         if (setting.env == 'test'){
@@ -522,8 +521,8 @@ function game(setting, user_info, game_type, check_status){
                 break;
             case self.LC_BROADCAST_ACTION_TYPE_NOTICE_ACTIVE_USER:
                 req_msg = self.resp_parser.resp_notify_active_user(msg_obj, desk);
-                console.log(__LINE__, "dDeskID: " + desk.dDeskID + " dBoardBigBlindChip: " + desk.dBoardBigBlindChip + " dBoardRaiseChip: " + desk.dBoardRaiseChip +
-                        " dBoardMaxRoundChip: " + desk.dBoardMaxRoundChip + " dUBetchips:" + desk.dUBetchips);
+                //console.log(__LINE__, "dDeskID: " + desk.dDeskID + " dBoardBigBlindChip: " + desk.dBoardBigBlindChip + " dBoardRaiseChip: " + desk.dBoardRaiseChip +
+                //        " dBoardMaxRoundChip: " + desk.dBoardMaxRoundChip + " dUBetchips:" + desk.dUBetchips);
                 break;
             case self.LC_BROADCAST_ACTION_TYPE_FOLD:
                 req_msg = self.resp_parser.resp_fold(msg_obj, desk);
@@ -660,10 +659,13 @@ function game(setting, user_info, game_type, check_status){
                 return false;
             }
         } else if (action == self.LC_BROADCAST_ACTION_TYPE_STANDUP || action == self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM){
-            console.log(__LINE__, 'action: ' + action + ' LC_BROADCAST_ACTION_TYPE_STANDUP or LC_BROADCAST_ACTION_TYPE_LEFT_ROOM, close');
+            console.log(__LINE__, 'action: ' + action + ' uid: ' + self.user_info.uid + ' LC_BROADCAST_ACTION_TYPE_STANDUP or LC_BROADCAST_ACTION_TYPE_LEFT_ROOM, close');
+            if (self.user_info.uid != msg_obj.action["uid"]){
+                return false;
+            }
             delete self.desk_list.desk_id;
             self.ws.close();
-            self.end_func();
+            self.end_func(self.user_info.uid, self.room_id);
             return true;
         } else if (action == self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_SNG_MATCH_END){//game end
         } else if (action == self.LC_BROADCAST_ACTION_TYPE_NOTICE_ACTIVE_USER){//need to delay
