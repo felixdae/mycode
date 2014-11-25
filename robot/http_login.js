@@ -15,17 +15,8 @@ function http_login(env){
 
     self.u = require('./utility');
 
-    self.login_done = false;
     self.user_info = {};
     self.room_info = [];
-    self.upload_key_done = false;
-    self.get_sng_room_info_done = false;
-    self.get_normal_room_info_done = false;
-//    if (self.setting.champion){
-//        self.get_sng_room_info_done = true;
-//        self.get_normal_room_info_done = true;
-//    }
-    self.get_user_info_done = false;
 
     self.pub_file = './var/rsa_public_key.pem';
     self.pri_file = './var/rsa_private_key.pem';
@@ -84,11 +75,9 @@ function http_login(env){
             if (resp_obj.retCode!=undefined){
                 delete resp_obj.retCode;
             }
-            self.login_done = true;
             self.upload_key();
         }else if(doing == 2){
             self.user_info.md5key = self.rsa_decipher(resp_obj.md5Key);
-            self.upload_key_done = true;
 
             if (self.type == 'login'){
                 self.login_success(self.user_info);
@@ -97,7 +86,6 @@ function http_login(env){
             }
         }else if(doing == 3){
             if (self.game == 'sng'){
-                self.get_sng_room_info_done = true;
                 resp_obj.data.forEach(function(item, index, arr){
                     item.match = 'sng';
                     self.room_info.push(item);
@@ -114,7 +102,6 @@ function http_login(env){
                         });
                     }
                 }
-                self.get_normal_room_info_done = true;
             }
             self.room_success(self.room_info);
         }else{
@@ -237,7 +224,6 @@ function http_login(env){
 
     //currently useless
     self.get_user_info = function(){
-        self.get_user_info_done = true;
         return true;
         var route = 'user/index';
         var req={
