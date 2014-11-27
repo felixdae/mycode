@@ -1,3 +1,5 @@
+exports.yylog=yylog;
+exports.shuffle=shuffle;
 exports.md5=md5;
 exports.clone=clone;
 exports.sortObject=sortObject;
@@ -29,6 +31,23 @@ function sortObject(o) {
     return sorted;
 }
 
+function shuffle(array) {
+    var currentIndex = array.length, temporaryValue, randomIndex ;
+
+    // While there remain elements to shuffle...
+    while (0 !== currentIndex) {
+        // Pick a remaining element...
+        randomIndex = Math.floor(Math.random() * currentIndex);
+        currentIndex -= 1;
+
+        // And swap it with the current element.
+        temporaryValue = array[currentIndex];
+        array[currentIndex] = array[randomIndex];
+        array[randomIndex] = temporaryValue;
+    }
+    return array;
+}
+        
 Object.defineProperty(global, '__STACK__', {
     get: function(){
              var orig = Error.prepareStackTrace;
@@ -47,3 +66,19 @@ Object.defineProperty(global, '__LINE__', {
          }
 });
 
+Object.defineProperty(global, '__FILE__', {
+    get: function(){
+             return __STACK__[1].getFileName();
+         }
+});
+
+function yylog(filename, linenumber){
+    var now = new Date(new Date().getTime() + 8*3600*1000);
+    var iso = now.toISOString().replace(/T/, ' ').replace(/Z/, '');
+
+    var msg = iso + ":" + filename + ":" + linenumber;
+    for (var i = 2; i < arguments.length; i++) {
+        msg += "|" + arguments[i];
+    }
+    console.log(msg);
+}

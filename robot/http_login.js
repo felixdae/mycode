@@ -15,8 +15,8 @@ function http_login(env){
 
     self.u = require('./utility');
 
-    self.user_info = {};
-    self.room_info = [];
+    //self.user_info = {};
+    //self.room_info = [];
 
     self.pub_file = './var/rsa_public_key.pem';
     self.pri_file = './var/rsa_private_key.pem';
@@ -51,44 +51,49 @@ function http_login(env){
         return self.u.md5(to_sign);
     }
 
-    self.req_ok = function(doing, response){
+    self.req_ok = function(doing, response, user_info){
         var resp_obj;
         try{
             resp_obj = JSON.parse(response);
-            //console.log(response);
         }catch(e){
-            console.log('exception: ' + e);
-            //console.log(response);
+            self.u.yylog(__FILE__, __LINE__, 'exception: ' + e);
             return false;
         }
         var retcode = (resp_obj.retcode===undefined? resp_obj.retCode:resp_obj.retcode);
         if (retcode != 0){
-            console.log('error response: ' + response);
+            self.u.yylog(__FILE__, __LINE__, 'error response: ' + response);
             return false;
         }
         if (doing == 1){//login
-            self.user_info = resp_obj;
-            self.user_info.from_where = self.from_where;
+            user_info = resp_obj;
+            user_info.from_where = self.from_where;
+            //self.user_info = resp_obj;
+            //self.user_info.from_where = self.from_where;
             if (resp_obj.retcode!=undefined){
                 delete resp_obj.retcode;
             }
             if (resp_obj.retCode!=undefined){
                 delete resp_obj.retCode;
             }
-            self.upload_key();
+            //if (!self.do_upload && self.type == 'login'){
+            //    self.login_success(self.user_info);
+            //}else{
+            self.upload_key(user_info);
+            //}
         }else if(doing == 2){
-            self.user_info.md5key = self.rsa_decipher(resp_obj.md5Key);
+            user_info.md5key = self.rsa_decipher(resp_obj.md5Key);
 
             if (self.type == 'login'){
-                self.login_success(self.user_info);
+                self.login_success(user_info);
             }else{
-                self.get_room_info(self.game);
+                self.get_room_info(self.game, user_info);
             }
         }else if(doing == 3){
+            var room_info = [];
             if (self.game == 'sng'){
                 resp_obj.data.forEach(function(item, index, arr){
                     item.match = 'sng';
-                    self.room_info.push(item);
+                    room_info.push(item);
                 });
             }else{
                 var k1,k2;
@@ -98,19 +103,19 @@ function http_login(env){
                             item.match = 'normal';
                             item.level = k1;
                             item.desk_player_num = k2;
-                            self.room_info.push(item);
+                            room_info.push(item);
                         });
                     }
                 }
             }
-            self.room_success(self.room_info);
+            self.room_success(room_info);
         }else{
-            console.log(doing, response);
+            self.u.yylog(__FILE__, __LINE__, doing, response);
             throw 'unknown doing';
         }
     }
 
-    self.comm_request = function(req, params, doing, success){
+    self.comm_request = function(req, params, doing, success, user_info){
         var http = require('http');
         var qs = require('querystring');
         http.request(req, function (res) {
@@ -120,13 +125,10 @@ function http_login(env){
                 body += chunk;
             });
             res.on('end', function () {
-         //       console.log(__LINE__);
-         //   console.log(req, params);
-         //       console.log(body);
-                success(doing, body);
+                success(doing, body, user_info);
             });
         }).on('error', function(e) {
-            console.log('http error: ' + e.message);
+            self.u.yylog(__FILE__, __LINE__, 'http error: ' + e.message);
         }).end(qs.stringify(params));
     }
 
@@ -137,7 +139,9 @@ function http_login(env){
         self.do_login(name, pass, vcode);
     }
 
+    //self.do_upload = false;
     self.login = function(name, pass, vcode, success){
+        //self.do_upload = upload_key;
         self.type = 'login';
         self.login_success = success;
         self.do_login(name, pass, vcode);
@@ -162,10 +166,11 @@ function http_login(env){
             verifycode: vcode,
             login_mode : 1
         }
-        self.comm_request(req, params, 1, self.req_ok);
+        var user_info = {};
+        self.comm_request(req, params, 1, self.req_ok, user_info);
     }
 
-    self.upload_key = function(){
+    self.upload_key = function(user_info){
         var fs = require('fs');
         var pub_key = fs.readFileSync(self.pub_file).toString();
         var req={
@@ -177,14 +182,14 @@ function http_login(env){
         }
         var params = {
             from_where : self.from_where,
-            uid: self.user_info.uid,
-            session_id: self.user_info.session_id,
+            uid: user_info.uid,
+            session_id: user_info.session_id,
             pubKey: pub_key
         }
-        self.comm_request(req, params, 2, self.req_ok);
+        self.comm_request(req, params, 2, self.req_ok, user_info);
     }
 
-    self.get_room_info = function(game){
+    self.get_room_info = function(game, user_info){
         var sng_route = 'lobby/game/getsngroomlist';
         var normal_route = 'lobby/game/getallroom';
 
@@ -197,8 +202,8 @@ function http_login(env){
 
         var params = {
             lua_version : '1.0.0.0',
-            session_id : self.user_info.session_id,
-            uid : self.user_info.uid,
+            session_id : user_info.session_id,
+            uid : user_info.uid,
             version: '1',
             from_where : self.from_where,
         };
@@ -209,21 +214,19 @@ function http_login(env){
             if (params.urlsign != undefined){
                 delete params.urlsign;
             }
-            params.urlsign = self.make_urlsign(params, self.user_info.md5key);
-            self.comm_request(req, params, 3, self.req_ok);
         }else{
             params.r = normal_route;
             req.path='/index.php?r=' + normal_route;
             if (params.urlsign != undefined){
                 delete params.urlsign;
             }
-            params.urlsign = self.make_urlsign(params, self.user_info.md5key);
-            self.comm_request(req, params, 3, self.req_ok);
         }
+        params.urlsign = self.make_urlsign(params, user_info.md5key);
+        self.comm_request(req, params, 3, self.req_ok, user_info);
     }
 
     //currently useless
-    self.get_user_info = function(){
+    self.get_user_info = function(user_info){
         return true;
         var route = 'user/index';
         var req={
@@ -236,17 +239,16 @@ function http_login(env){
 
         var params = {
             lua_version : '1.0.0.0',
-            session_id : self.user_info.session_id,
-            uid : self.user_info.uid,
+            session_id : user_info.session_id,
+            uid : user_info.uid,
             version: '1',
             from_where : self.from_where,
             r: route,
             c: 'userinfo',
             op: 'info',
         };
-        params.urlsign = self.make_urlsign(params, self.user_info.md5key);
-        //console.log(__LINE__);
-        self.comm_request(req, params, 5, self.req_ok);
+        params.urlsign = self.make_urlsign(params, user_info.md5key);
+        self.comm_request(req, params, 5, self.req_ok, user_info);
     }
 }
 
