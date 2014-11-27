@@ -621,7 +621,7 @@ function game(setting, user_info, game_type, check_status){
                 || action == self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_STANDUP_MONITOR
                 || action == self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_SIT_DOWN_MONITOR){//board end
             self.resp_parser.resp_end_board(msg_obj, desk);
-            self.pplog(__FILE__, __LINE__, 'board end", "action: ' + action);
+            self.pplog(__FILE__, __LINE__, 'board end', 'action: ' + action);
             if (self.game_type != 'normal'){
                 return true;
             }
