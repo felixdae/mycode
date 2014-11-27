@@ -1,7 +1,5 @@
 require('./utility');
-//exports.req_maker = req_maker;
-//exports.resp_parser = resp_parser;
-exports.game = game;
+module.exports = game;
 
 function req_maker(user_info){//desk
     var self = this;
@@ -28,7 +26,6 @@ function req_maker(user_info){//desk
             to_sign += k + smo[k];
         }
         to_sign += self.user_info.md5key;
-        //console.log(user_info, to_sign);
 
         mo.urlsign = self.u.md5(to_sign);
         return JSON.stringify(mo);
@@ -129,7 +126,6 @@ function resp_parser(user_info){
                 desk.dUBetchips=item["betchips"];
                 desk.dUserStatus=item["user_status"];
                 if(item["hole_card"] !== undefined){
-                    //console.log(__LINE__, item['hole_card']);
                     desk.dHoleCardArr=item["hole_card"];
                 }
             }
@@ -137,8 +133,6 @@ function resp_parser(user_info){
     }
 
     self.resp_sit_down = function(msg_obj, desk){
-        //console.log(__LINE__, "resp_sit_down?");
-        //return false;
         if (self.user_info.uid != msg_obj.action.uid){
             return '';
         }
@@ -190,7 +184,6 @@ function resp_parser(user_info){
 
     self.resp_get_holdcard = function(msg_obj, desk){
         if(msg_obj.inc["players"][0]["uid"]==self.user_info.uid){
-            //console.log(__LINE__, msg_obj.inc['players'][0]['hole_card']);
             desk.dHoleCardArr=msg_obj.inc["players"][0]["hole_card"];
         }
         return '';
@@ -242,7 +235,6 @@ function resp_parser(user_info){
             if (desk.dBoardMaxRoundChip > 0){
                 return self.call(desk);
             }else{
-                //console.log(__LINE__);
                 return self.check(desk);
             }
         }else if(r<0.6){
@@ -251,7 +243,6 @@ function resp_parser(user_info){
             if (desk.dBoardMaxRoundChip > 0){
                 return self.fold(desk);
             }else{
-                //console.log(__LINE__);
                 return self.check(desk);
             }
         }else{
@@ -260,13 +251,11 @@ function resp_parser(user_info){
     }
 
     self.resp_notify_active_user = function(msg_obj, desk){
-        //console.log(JSON.stringify(msg_obj, null, 2));
 
         desk.dBoardActiveSeatNum=msg_obj.inc["active_seat_num"];
         desk.dBoardRaiseChip=msg_obj.inc["raise_chip"];
         desk.dBoardMaxRoundChip=msg_obj.inc["max_round_chip"];
 
-        //console.log(__LINE__, desk);
         if(self.user_info.uid == msg_obj.action["uid"]){
             return self.think(desk);
         }
@@ -288,7 +277,6 @@ function resp_parser(user_info){
     };
 
     self.resp_allin = function(msg_obj, desk){
-        //console.log(__LINE__, JSON.stringify(msg_obj, null, 2));
         if(self.user_info.uid==msg_obj.action["uid"]){
             desk.dUserStatus=msg_obj.action["user_status"];
             desk.dUChip=0;
@@ -319,7 +307,6 @@ function resp_parser(user_info){
     };
 
     self.resp_notify_side_pot = function(msg_obj, desk){
-        //console.log(__LINE__, JSON.stringify(msg_obj, null, 2));
         desk.dUBetchips=0;
         desk.dBoardRaiseChip=0;
         desk.dBoardMaxRoundChip=0;
@@ -388,16 +375,22 @@ function resp_parser(user_info){
 
 function game(setting, user_info, game_type, check_status){
     var self = this;
+    self.u = require('./utility');
     self.setting = setting;
     self.user_info = user_info;
     self.game_type = game_type;
     self.end_func = check_status;
 
     self.resp_parser = new resp_parser(user_info);
+    self.pplog = function(filename, linenumber){
+        self.u.yylog.apply(null, [filename, linenumber, "uid: " + self.user_info.uid, "room_id: " + self.room_id].concat(Array.prototype.slice.call(arguments, 2)));
+    }
     self.start_game = function(room_id, duration){
+        self.room_id = room_id;
+
+        self.pplog(__FILE__, __LINE__, "start game", "duration: " + duration);
         var fd = new Date();
         self.service_end_time = parseInt(fd.getTime()/1000) + duration;
-        self.room_id = room_id;
         self.ws_path = 'ws://10.0.1.28:7681';
         if (setting.env == 'test'){
             self.ws_path = 'ws://10.0.1.28:7682';
@@ -421,20 +414,13 @@ function game(setting, user_info, game_type, check_status){
                 var match_id = self.room_id;
                 first_req = self.join_match(match_id, champion_room_type);
             }else{
-                console.log(__LINE__, "unknown game_type");
+                self.pplog(__FILE__, __LINE__, "unknown game_type");
                 return;
             }
-            //console.log(__LINE__ 'send :' + first_req);
-            //self.ws.send(first_req, {binary:false, mask: true}, function(err){
-            //    if(err){
-            //        console.log("ws send error: " + err);
-            //        self.ws.close();
-            //    }
-            //});
             self.ws_send(first_req);
         });
         self.ws.on('close', function (){
-            console.log('ws closed');
+            self.pplog(__FILE__, __LINE__, 'ws closed');
         });
         self.ws.on('message', function (data, flags) {
             self.play(data);
@@ -494,17 +480,14 @@ function game(setting, user_info, game_type, check_status){
 
     self.desk_list = {};
     self.simple_parse = function(msg_obj, desk){
-        console.log(__LINE__, "action: "+ msg_obj.action.action + " dDeskID: " + desk.dDeskID + " uid: "
-                + self.user_info.uid + " dUChip: " + desk.dUChip + " dBoardID: " + desk.dBoardID);
-        //console.log(__LINE__, "action: "+ msg_obj.action.action);
+        self.pplog(__FILE__, __LINE__, "action: "+ msg_obj.action.action, "dDeskID: " + desk.dDeskID, "dBoardID: " + desk.dBoardID);
         if (msg_obj.retCode !== 0){
-            console.log(__LINE__, 'retcode: ' + msg_obj.retCode);
+            self.pplog(__FILE__, __LINE__, 'retcode: ' + msg_obj.retCode);
             return self.global_game_info(desk.dDeskID);
         }
 
         var req_msg;
         var action = msg_obj.action.action;
-        //desk.sequence_id = parseInt(msg_obj.sequence_id);
         switch(action)
         {
             case self.LC_BROADCAST_ACTION_TYPE_EMOTICON:
@@ -521,8 +504,6 @@ function game(setting, user_info, game_type, check_status){
                 break;
             case self.LC_BROADCAST_ACTION_TYPE_NOTICE_ACTIVE_USER:
                 req_msg = self.resp_parser.resp_notify_active_user(msg_obj, desk);
-                //console.log(__LINE__, "dDeskID: " + desk.dDeskID + " dBoardBigBlindChip: " + desk.dBoardBigBlindChip + " dBoardRaiseChip: " + desk.dBoardRaiseChip +
-                //        " dBoardMaxRoundChip: " + desk.dBoardMaxRoundChip + " dUBetchips:" + desk.dUBetchips);
                 break;
             case self.LC_BROADCAST_ACTION_TYPE_FOLD:
                 req_msg = self.resp_parser.resp_fold(msg_obj, desk);
@@ -568,7 +549,7 @@ function game(setting, user_info, game_type, check_status){
                 req_msg = self.resp_parser.resp_monitor_stand_up(msg_obj, desk);
                 break;
             case self.LC_BROADCAST_ACTION_TYPE_INIT_USERGAMEINFO:
-                console.log(__LINE__, "LC_BROADCAST_ACTION_TYPE_INIT_USERGAMEINFO here");
+                self.pplog(__FILE__, __LINE__, "LC_BROADCAST_ACTION_TYPE_INIT_USERGAMEINFO here");
                 break;
             case self.LC_BROADCAST_ACTION_TYPE_EXCHANGE_CHIP:
                 req_msg = self.resp_parser.resp_buy_chip(msg_obj, desk);
@@ -583,20 +564,18 @@ function game(setting, user_info, game_type, check_status){
     //game end
     //need to delay
     self.parse = function(msg){
-        //console.log(__LINE__, msg);
         var msg_obj;
         try{
             msg_obj = JSON.parse(msg);
         }catch(e){
-            console.log(__LINE__, 'exception: ' + e);
-            //return self.global_game_info();
+            self.pplog(__FILE__, __LINE__, 'exception: ' + e);
             self.ws_send(self.global_game_info());
             return false;
         }
         if (msg_obj.retCode !== 0){
-            console.log(__LINE__, 'retcode: ' + msg_obj.retCode);
-            //return self.global_game_info();
-            self.ws_send(self.global_game_info());
+            self.pplog(__FILE__, __LINE__, 'retcode: ' + msg_obj.retCode);
+            self.ws.close();
+            self.end_func(self.user_info.uid, self.room_id, 'retcode: ' + msg_obj.retCode);
             return false;
         }
         var action = msg_obj.action.action;
@@ -609,26 +588,24 @@ function game(setting, user_info, game_type, check_status){
         }
 
         var desk_id = parseInt(msg_obj.desk_id);
-        //desk_id = 1;
         var desk = self.desk_list[desk_id];
         if (desk == undefined){
-            console.log(__LINE__, "no desk for desk_id: " + desk_id);
-            //return self.global_game_info(desk_id);
+            self.pplog(__FILE__, __LINE__, "no desk for desk_id: " + desk_id);
             self.ws_send(self.global_game_info(desk_id));
             return false;
         } 
 
         if (msg_obj.sequence_id === undefined){
-            console.log(__LINE__, 'no sequence_id');
+            self.pplog(__FILE__, __LINE__, 'no sequence_id');
             return self.global_game_info(desk.dDeskID);
         }
         if (desk.sequence_id != 0){
             if(parseInt(msg_obj.sequence_id) <= parseInt(desk.sequence_id)){
-                console.log(__LINE__, 'incremently sequence_id error: ' + msg_obj.sequence_id + ' vs ' + desk.sequence_id);
+                self.pplog(__FILE__, __LINE__, 'incremently sequence_id error: ' + msg_obj.sequence_id + ' vs ' + desk.sequence_id);
                 return self.global_game_info(desk.dDeskID);
             }
             if(parseInt(msg_obj.sequence_id) > parseInt(desk.sequence_id) + 1){
-                console.log(__LINE__, msg_obj.sequence_id + ' vs ' + parseInt(desk.sequence_id));
+                self.pplog(__FILE__, __LINE__, msg_obj.sequence_id + ' vs ' + parseInt(desk.sequence_id));
                 return self.global_game_info(desk.dDeskID);
             }
         }
@@ -636,7 +613,7 @@ function game(setting, user_info, game_type, check_status){
 
         if (action == self.LC_BROADCAST_ACTION_TYPE_CHARACTER
                 || action == self.LC_BROADCAST_ACTION_TYPE_EMOTICON) {
-            console.log(__LINE__, 'action: ' + action + ' emotion or chat');
+            self.pplog(__FILE__, __LINE__, 'action: ' + action + ' emotion or chat');
             return true;
         }
         if (action == self.LC_BROADCAST_ACTION_TYPE_END_BOARD
@@ -644,30 +621,34 @@ function game(setting, user_info, game_type, check_status){
                 || action == self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_STANDUP_MONITOR
                 || action == self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_SIT_DOWN_MONITOR){//board end
             self.resp_parser.resp_end_board(msg_obj, desk);
-            console.log(__LINE__, 'action: ' + action);
+            self.pplog(__FILE__, __LINE__, 'board end", "action: ' + action);
+            if (self.game_type != 'normal'){
+                return true;
+            }
 
             var now = new Date();
-            console.log(__LINE__, now);
+            self.pplog(__LINE__, __FILE__, "should stop at: " + now.toISOString().replace(/T/, ' ').replace(/Z/, ''));
             var ts = parseInt(now.getTime()/1000);
             if (ts > self.service_end_time){
-                //return self.resp_parser.req_maker.left(desk.desk_id);
                 self.ws_send(self.resp_parser.req_maker.left(desk.desk_id));
                 return false;
             }else{
-                //return self.resp_parser.req_maker.sit_down(self.room_id);
-                //self.ws_send(self.resp_parser.req_maker.sit_down(self.room_id));
                 return false;
             }
         } else if (action == self.LC_BROADCAST_ACTION_TYPE_STANDUP || action == self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM){
-            console.log(__LINE__, 'action: ' + action + ' uid: ' + self.user_info.uid + ' LC_BROADCAST_ACTION_TYPE_STANDUP or LC_BROADCAST_ACTION_TYPE_LEFT_ROOM, close');
             if (self.user_info.uid != msg_obj.action["uid"]){
                 return false;
             }
+            self.pplog(__FILE__, __LINE__, 'action: ' + action, ' LC_BROADCAST_ACTION_TYPE_STANDUP or LC_BROADCAST_ACTION_TYPE_LEFT_ROOM, close');
             delete self.desk_list.desk_id;
             self.ws.close();
-            self.end_func(self.user_info.uid, self.room_id);
+            self.end_func(self.user_info.uid, self.room_id, 'action: ' + action + ", exit from: " + self.room_id);
             return true;
         } else if (action == self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_SNG_MATCH_END){//game end
+            if (self.game_type != 'sng'){
+                return true;
+            }
+            self.end_func(self.user_info.uid, self.room_id, 'exit from sng match: ' + self.room_id);
         } else if (action == self.LC_BROADCAST_ACTION_TYPE_NOTICE_ACTIVE_USER){//need to delay
             self.sleep = 0;
             var r = Math.random();
@@ -682,12 +663,9 @@ function game(setting, user_info, game_type, check_status){
             }else{
                 self.sleep = 8;
             }
-            //return self.simple_parse(msg_obj, desk);
-            //self.ws_send(self.simple_parse(msg_obj, desk));
             self.delay_send_req(self.simple_parse(msg_obj, desk), self.sleep);
             return true;
         } else {
-            //return self.simple_parse(msg_obj, desk);
             self.ws_send(self.simple_parse(msg_obj, desk));
             return true;
         }
@@ -703,17 +681,14 @@ function game(setting, user_info, game_type, check_status){
 
     self.ws_send= function(msg){
         if (!msg){
-            //console.log(__LINE__, "error msg: " + msg);
             return false;
         }
-        //console.log(__LINE__, 'send: ' + msg);
         self.ws.send(msg, {binary:false, mask: true}, function(err){
             if(err){
-                console.log(__LINE__, "ws send error: " + err);
+                self.pplog(__FILE__, __LINE__, "ws send error: " + err);
                 self.ws.close();
             }
         });
     }
 }
-//setTimeout(self.send_msg, sleep*1000, req_msg);
 
