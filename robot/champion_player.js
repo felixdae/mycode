@@ -380,17 +380,14 @@ function game(setting, user_info, game_type, check_status){
     self.user_info = user_info;
     self.game_type = game_type;
     self.end_func = check_status;
+    self.ws_state = 'init';
 
     self.resp_parser = new resp_parser(user_info);
     self.pplog = function(filename, linenumber){
-        self.u.yylog.apply(null, [filename, linenumber, "uid: " + self.user_info.uid, "room_id: " + self.room_id].concat(Array.prototype.slice.call(arguments, 2)));
+        yylog.apply(self.u, [filename, linenumber, "uid: " + self.user_info.uid, "room_id: " + self.room_id].concat(Array.prototype.slice.call(arguments, 2)));
     }
-    self.start_game = function(room_id, duration){
-        self.room_id = room_id;
 
-        self.pplog(__FILE__, __LINE__, "start game", "duration: " + duration);
-        var fd = new Date();
-        self.service_end_time = parseInt(fd.getTime()/1000) + duration;
+    self.open_ws = function(){
         self.ws_path = 'ws://10.0.1.28:7681';
         if (setting.env == 'test'){
             self.ws_path = 'ws://10.0.1.28:7682';
@@ -402,29 +399,43 @@ function game(setting, user_info, game_type, check_status){
         self.ws = new WebSocket(self.ws_path);
 
         self.ws.on('open', function (){
-            var sng_room_type = 2;
-            var normal_room_type = 1;
-            var champion_room_type = 4;
-            var first_req = '';
-            if (self.game_type == 'normal'){
-                first_req = self.sit_down(self.room_id, normal_room_type);
-            }else if(self.game_type == 'sng'){
-                first_req = self.sit_down(self.room_id, sng_room_type);
-            }else if(self.game_type == 'champion'){
-                var match_id = self.room_id;
-                first_req = self.join_match(match_id, champion_room_type);
-            }else{
-                self.pplog(__FILE__, __LINE__, "unknown game_type");
-                return;
-            }
-            self.ws_send(first_req);
+            self.pplog(__FILE__, __LINE__, 'ws open');
+            self.ws_state = 'open';
         });
         self.ws.on('close', function (){
             self.pplog(__FILE__, __LINE__, 'ws closed');
+            self.ws_state = 'closed';
+            clearInterval(self.check_idle_id);
         });
         self.ws.on('message', function (data, flags) {
             self.play(data);
         });
+    }
+
+    self.start_game = function(room_id, duration){
+        self.room_id = room_id;
+
+        self.last_send = 2000000000000;
+        self.check_idle_id = setInterval(self.check_idle, 60*1000);
+        var sng_room_type = 2;
+        var normal_room_type = 1;
+        var champion_room_type = 4;
+        var first_req = '';
+        if (self.game_type == 'normal'){
+            first_req = self.sit_down(self.room_id, normal_room_type);
+        }else if(self.game_type == 'sng'){
+            first_req = self.sit_down(self.room_id, sng_room_type);
+        }else if(self.game_type == 'champion'){
+            var match_id = self.room_id;
+            first_req = self.join_match(match_id, champion_room_type);
+        }else{
+            self.pplog(__FILE__, __LINE__, "unknown game_type");
+            return;
+        }
+        self.ws_send(first_req);
+        self.pplog(__FILE__, __LINE__, "start game", "duration: " + duration);
+        var fd = new Date();
+        self.service_end_time = parseInt(fd.getTime()/1000) + duration;
     }
 
     self.sit_down = function(room_id, room_type){
@@ -597,16 +608,19 @@ function game(setting, user_info, game_type, check_status){
 
         if (msg_obj.sequence_id === undefined){
             self.pplog(__FILE__, __LINE__, 'no sequence_id');
-            return self.global_game_info(desk.dDeskID);
+            self.ws_send(self.global_game_info(desk.dDeskID));
+            return false;
         }
         if (desk.sequence_id != 0){
             if(parseInt(msg_obj.sequence_id) <= parseInt(desk.sequence_id)){
                 self.pplog(__FILE__, __LINE__, 'incremently sequence_id error: ' + msg_obj.sequence_id + ' vs ' + desk.sequence_id);
-                return self.global_game_info(desk.dDeskID);
+                self.ws_send(self.global_game_info(desk.dDeskID));
+                return false;
             }
             if(parseInt(msg_obj.sequence_id) > parseInt(desk.sequence_id) + 1){
                 self.pplog(__FILE__, __LINE__, msg_obj.sequence_id + ' vs ' + parseInt(desk.sequence_id));
-                return self.global_game_info(desk.dDeskID);
+                self.ws_send(self.global_game_info(desk.dDeskID));
+                return false;
             }
         }
         desk.sequence_id = parseInt(msg_obj.sequence_id);
@@ -648,6 +662,7 @@ function game(setting, user_info, game_type, check_status){
             if (self.game_type != 'sng'){
                 return true;
             }
+            self.ws.close();
             self.end_func(self.user_info.uid, self.room_id, 'exit from sng match: ' + self.room_id);
         } else if (action == self.LC_BROADCAST_ACTION_TYPE_NOTICE_ACTIVE_USER){//need to delay
             self.sleep = 0;
@@ -679,16 +694,36 @@ function game(setting, user_info, game_type, check_status){
         setTimeout(self.ws_send, delay*1000, req);
     }
 
-    self.ws_send= function(msg){
+    self.ws_send = function(msg){
         if (!msg){
+            return false;
+        }
+        if (self.ws_state != 'open'){
+            self.pplog(__FILE__, __LINE__, "ws not open");
             return false;
         }
         self.ws.send(msg, {binary:false, mask: true}, function(err){
             if(err){
                 self.pplog(__FILE__, __LINE__, "ws send error: " + err);
                 self.ws.close();
+                self.end_func(self.user_info.uid, self.room_id, 'exit for ws error: ' + err);
             }
         });
+        self.last_send = new Date().getTime();
+    }
+
+    self.check_idle = function(){
+        var ts = new Date().getTime();
+        if (ts - self.last_send > 540*1000){
+            self.pplog(__FILE__, __LINE__, "idle for too long: " + (ts - self.last_send)/1000);
+            if (self.game_type == 'normal'){
+                self.ws.close();    
+                self.end_func(self.user_info.uid, self.room_id, "idle for too long: " + (ts - self.last_send)/1000);
+            }
+            else if (self.game_type == 'sng'){
+                self.ws_send(self.global_game_info());
+            }
+        }
     }
 }
 
