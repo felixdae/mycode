@@ -64,6 +64,7 @@ function resp_parser(user_info){
     var self = this;
     self.user_info = user_info;
     self.req_maker = new req_maker(user_info);
+    self.u = require('./utility');
 
     self.resp_global_game_info = function(msg_obj){
         mul_desk = {};
@@ -100,14 +101,16 @@ function resp_parser(user_info){
         desk.dDeskStatus=deskArr["desk_status"];
         desk.dDeskMaxPerson=deskArr["max_person"];
         desk.dRoomType=deskArr["room_type"];
-        desk.dBoardBigBlindChip=deskArr["big_blind_chip"];
+        desk.dBoardBigBlindChip=parseInt(deskArr["big_blind_chip"]);
         desk.dBoardSmallBlindChip=deskArr["small_blind_chip"];
     }
 
     self.set_board = function(boardArr, desk){
         desk.dBoardActiveSeatNum=boardArr["active_seat_num"];
-        desk.dBoardMaxRoundChip=boardArr["max_round_chip"];
-        desk.dBoardRaiseChip=boardArr["raise_chip"];
+        //self.u.yylog(__FILE__, __LINE__, "desk.dBoardMaxRoundChip: "+desk.dBoardMaxRoundChip);
+        desk.dBoardMaxRoundChip=parseInt(boardArr["max_round_chip"]);
+        //self.u.yylog(__FILE__, __LINE__, "desk.dBoardMaxRoundChip: "+desk.dBoardMaxRoundChip);
+        desk.dBoardRaiseChip=parseInt(boardArr["raise_chip"]);
         desk.dBoardBigBlindSeatNum=boardArr["dealer_seat_num"];
         desk.dBoardBigBlindSeatNum=boardArr["big_blind_seat_num"];
         desk.dBoardSmallBlindSeatNum=boardArr["small_blind_seat_num"];
@@ -119,8 +122,8 @@ function resp_parser(user_info){
         desk.dPlayerArr=players;
         desk.dPlayerArr.forEach(function(item, index, arr){
             if (item.uid == self.user_info.uid){
-                desk.dUChip=item["chip"];
-                desk.dUBetchips=item["betchips"];
+                desk.dUChip=parseInt(item["chip"]);
+                desk.dUBetchips=parseInt(item["betchips"]);
                 desk.dUserStatus=item["user_status"];
                 if(item["hole_card"] !== undefined){
                     desk.dHoleCardArr=item["hole_card"];
@@ -140,8 +143,8 @@ function resp_parser(user_info){
             //入座增量包
             desk.dRoomType=msg_obj.action["room_type"];
             desk.dUserStatus=msg_obj.inc["user_status"];
-            desk.dUChip=msg_obj.inc["chip"];
-            desk.dUBetchips=msg_obj.inc["betchips"];
+            desk.dUChip=parseInt(msg_obj.inc["chip"]);
+            desk.dUBetchips=parseInt(msg_obj.inc["betchips"]);
         }
         else
         {
@@ -167,18 +170,20 @@ function resp_parser(user_info){
 
         //desk.dSeatNum=msg_obj.action["seat_num"];
         desk.dDeskStatus=msg_obj.inc["desk_status"];
-        desk.dBoardBigBlindChip=msg_obj.inc["big_blind_chip"];
+        desk.dBoardBigBlindChip=parseInt(msg_obj.inc["big_blind_chip"]);
         desk.dBoardSmallBlindChip=msg_obj.inc["small_blind_chip"];
         desk.dBoardDealerSeatNum=msg_obj.inc["dealer_seat_num"];
         desk.dBoardBigBlindSeatNum=msg_obj.inc["big_blind_seat_num"];
         desk.dBoardSmallBlindSeatNum=msg_obj.inc["small_blind_seat_num"];
-        desk.dBoardMaxRoundChip=msg_obj.inc["max_round_chip"];
-        desk.dBoardRaiseChip=msg_obj.inc["raise_chip"];
+        //self.u.yylog(__FILE__, __LINE__, "desk.dBoardMaxRoundChip: "+desk.dBoardMaxRoundChip);
+        desk.dBoardMaxRoundChip=parseInt(msg_obj.inc["max_round_chip"]);
+        //self.u.yylog(__FILE__, __LINE__, "desk.dBoardMaxRoundChip: "+desk.dBoardMaxRoundChip);
+        desk.dBoardRaiseChip=parseInt(msg_obj.inc["raise_chip"]);
         desk.dBoardID=msg_obj.inc["board_id"];
         msg_obj.inc["players"].forEach(function(item, index, arr){
             if (item.seat_num == desk.dSeatNum){
-                desk.dUChip = item.chip;
-                desk.dUBetchips = item.betchips;
+                desk.dUChip = parseInt(item.chip);
+                desk.dUBetchips = parseInt(item.betchips);
             }
         });
         return self.req_maker.global_game_info(msg_obj.desk_id);
@@ -204,16 +209,16 @@ function resp_parser(user_info){
         var mul = 0;
         var r = Math.random();
         if (r<1/8){
-            mul = 5;
-        }else if(r<1/4){
             mul = 4;
-        }else if(r<1/2){
+        }else if(r<1/4){
             mul = 3;
-        }else{
+        }else if(r<1/2){
             mul = 2;
+        }else{
+            mul = 1;
         }
         var rand_chip = parseInt(mul)*desk.dBoardBigBlindChip;
-
+        //self.u.yylog(__FILE__, __LINE__, rand_chip, desk.dBoardBigBlindChip, desk.dBoardMaxRoundChip);
         var chip = 0;
         if(desk.dBoardRaiseChip == 0){
             if(desk.dBoardMaxRoundChip<=desk.dBoardBigBlindChip){
@@ -225,6 +230,7 @@ function resp_parser(user_info){
             chip = desk.dBoardMaxRoundChip-desk.dUBetchips+desk.dBoardRaiseChip+rand_chip;
         }
 
+        //self.u.yylog(__FILE__, __LINE__, chip, desk.dBoardMaxRoundChip, desk.dUBetchips, desk.dBoardBigBlindChip);
         if(chip>desk.dUChip){
             chip=desk.dUChip;
         }
@@ -241,15 +247,17 @@ function resp_parser(user_info){
         if (chip > desk.dUChip){
             chip = desk.dUChip;
         }
-        if (chip > 2.5*desk.dBoardBigBlindChip){
-            return self.fold(desk);
+        //self.u.yylog(__FILE__, __LINE__, chip, desk.dBoardBigBlindChip);
+        var r = Math.random();
+        if (r < 1/Math.pow(2, chip/desk.dBoardBigBlindChip)){
+            return self.req_maker.bet(chip, desk.desk_id);
         }
-        return self.req_maker.bet(chip, desk.desk_id);
+        return self.fold(desk);
     }
 
     self.think = function(desk){
         if(desk.dBoardMaxRoundChip > 0){
-            if (desk.dRoundCntr == 1){
+            if (desk.dRoundCntr == 1 && desk.dBoardBigBlindSeatNum == desk.dSeatNum){
                 var r = Math.random();
                 if (r < 0.02){
                     return self.fold(desk);
@@ -268,7 +276,7 @@ function resp_parser(user_info){
             }
         }else{
             var r = Math.random();
-            if(r < 0.65){
+            if(r < 0.9){
                 return self.check(desk);
             }else{
                 return self.raise(desk);
@@ -280,8 +288,10 @@ function resp_parser(user_info){
         desk.dRoundCntr+=1;
 
         desk.dBoardActiveSeatNum=msg_obj.inc["active_seat_num"];
-        desk.dBoardRaiseChip=msg_obj.inc["raise_chip"];
-        desk.dBoardMaxRoundChip=msg_obj.inc["max_round_chip"];
+        desk.dBoardRaiseChip=parseInt(msg_obj.inc["raise_chip"]);
+        //self.u.yylog(__FILE__, __LINE__, "desk.dBoardMaxRoundChip: "+desk.dBoardMaxRoundChip);
+        desk.dBoardMaxRoundChip=parseInt(msg_obj.inc["max_round_chip"]);
+        //self.u.yylog(__FILE__, __LINE__, "desk.dBoardMaxRoundChip: "+desk.dBoardMaxRoundChip);
 
         if(self.user_info.uid == msg_obj.action["uid"]){
             return self.think(desk);
@@ -307,7 +317,7 @@ function resp_parser(user_info){
         if(self.user_info.uid==msg_obj.action["uid"]){
             desk.dUserStatus=msg_obj.action["user_status"];
             desk.dUChip=0;
-            desk.dUBetchips=msg_obj.inc["betchips"];
+            desk.dUBetchips=parseInt(msg_obj.inc["betchips"]);
         }
         desk.dBoardTotalChip=msg_obj.inc["total_chip"];
         return '';
@@ -316,8 +326,8 @@ function resp_parser(user_info){
     self.resp_bet = function(msg_obj, desk){
         if(self.user_info.uid==msg_obj.action["uid"]){
             desk.dUserStatus=msg_obj.action["user_status"];
-            desk.dUChip=msg_obj.inc["chip"];
-            desk.dUBetchips=msg_obj.inc["betchips"];
+            desk.dUChip=parseInt(msg_obj.inc["chip"]);
+            desk.dUBetchips=parseInt(msg_obj.inc["betchips"]);
         }
         desk.dBoardTotalChip=msg_obj.inc["total_chip"];
         return '';
@@ -326,8 +336,8 @@ function resp_parser(user_info){
     self.resp_raise = function(msg_obj, desk){
         if(self.user_info.uid==msg_obj.action["uid"]){
             desk.dUserStatus=msg_obj.action["user_status"];
-            desk.dUChip=msg_obj.inc["chip"];
-            desk.dUBetchips=msg_obj.inc["betchips"];
+            desk.dUChip=parseInt(msg_obj.inc["chip"]);
+            desk.dUBetchips=parseInt(msg_obj.inc["betchips"]);
         }
         desk.dBoardTotalChip=msg_obj.inc["total_chip"];
         return '';
@@ -336,7 +346,9 @@ function resp_parser(user_info){
     self.resp_notify_side_pot = function(msg_obj, desk){
         desk.dUBetchips=0;
         desk.dBoardRaiseChip=0;
+        //self.u.yylog(__FILE__, __LINE__, "desk.dBoardMaxRoundChip: "+desk.dBoardMaxRoundChip);
         desk.dBoardMaxRoundChip=0;
+        //self.u.yylog(__FILE__, __LINE__, "desk.dBoardMaxRoundChip: "+desk.dBoardMaxRoundChip);
         return '';
     };
 
@@ -608,7 +620,7 @@ function game(setting, user_info, game_type, check_status){
     //game end
     //need to delay
     self.parse = function(msg){
-        self.pplog(__FILE__, __LINE__, msg);
+        //self.pplog(__FILE__, __LINE__, msg);
         var msg_obj;
         try{
             msg_obj = JSON.parse(msg);
@@ -619,8 +631,9 @@ function game(setting, user_info, game_type, check_status){
         }
         if (msg_obj.retCode !== 0){
             self.pplog(__FILE__, __LINE__, 'retcode: ' + msg_obj.retCode);
-            self.ws.close();
-            self.end_func(self.user_info.uid, self.room_id, 'retcode: ' + msg_obj.retCode);
+            //self.ws.close();
+            //self.end_func(self.user_info.uid, self.room_id, 'retcode: ' + msg_obj.retCode);
+            self.ws_send(self.resp_parser.req_maker.left(msg_obj.desk_id));
             return false;
         }
         var action = msg_obj.action.action;
@@ -752,7 +765,7 @@ function game(setting, user_info, game_type, check_status){
             self.pplog(__FILE__, __LINE__, "ws not open");
             return false;
         }
-        self.pplog(__FILE__, __LINE__, msg);
+        //self.pplog(__FILE__, __LINE__, msg);
         self.ws.send(msg, {binary:false, mask: true}, function(err){
             if(err){
                 self.pplog(__FILE__, __LINE__, "ws send error: " + err);
