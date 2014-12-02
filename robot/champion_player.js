@@ -555,6 +555,9 @@ function game(setting, user_info, game_type, check_status){
                 break;
             case self.LC_BROADCAST_ACTION_TYPE_START_GAME:
                 req_msg = self.resp_parser.resp_start_game(msg_obj, desk);
+                if (self.game_type == 'sng'){
+                    self.end_func(self.user_info.uid, self.room_id, 'sng start');
+                }
                 break;
             case self.LC_BROADCAST_ACTION_TYPE_HOLE_CARD:
                 req_msg = self.resp_parser.resp_get_holdcard(msg_obj, desk);
@@ -632,8 +635,11 @@ function game(setting, user_info, game_type, check_status){
         }
         if (msg_obj.retCode !== 0){
             self.pplog(__FILE__, __LINE__, 'retcode: ' + msg_obj.retCode);
-            //self.ws.close();
-            //self.end_func(self.user_info.uid, self.room_id, 'retcode: ' + msg_obj.retCode);
+            if (msg_obj.retCode == -106000 || msg_obj.retCode == -202023){
+                self.ws.close();
+                self.end_func(self.user_info.uid, self.room_id, 'retcode: ' + msg_obj.retCode);
+                return false;
+            }
             self.ws_send(self.resp_parser.req_maker.left(msg_obj.desk_id));
             return false;
         }
@@ -675,6 +681,7 @@ function game(setting, user_info, game_type, check_status){
 
         if (action == self.LC_BROADCAST_ACTION_TYPE_CHARACTER
                 || action == self.LC_BROADCAST_ACTION_TYPE_EMOTICON) {
+            self.pplog(__FILE__, __LINE__, msg);
             self.pplog(__FILE__, __LINE__, 'action: ' + action + ' emotion or chat');
             return true;
         }

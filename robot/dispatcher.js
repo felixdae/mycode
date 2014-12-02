@@ -30,7 +30,7 @@ function dispatcher(setting){
         }
         self.pairing = true;
         var robot_pass = 'ASD123@$888qwe';
-        //self.room_list = u.shuffle(self.room_list);
+        self.room_list = u.shuffle(self.room_list);
         self.room_list.forEach(function(room){
             if (self.room2robot[room.id] == undefined){
                 self.room2robot[room.id] = [];
@@ -70,7 +70,9 @@ function dispatcher(setting){
                     var game = require('./champion_player');
                     var player = new game(self.setting, my_user_info, self.setting.game_type, function(uid, room_id, exit_reason){
                         u.yylog(__FILE__, __LINE__, "uid: " + uid + " exit room: " + room_id + " for reason: " + exit_reason);
-                        delete self.robot2room[uid];
+                        if (!(exit_reason == 'sng start' && self.game_type == 'sng')){
+                            delete self.robot2room[uid];
+                        }
                         var t_arr = self.room2robot[room_id].filter(function(item){
                             return uid != item;
                         });
@@ -84,7 +86,7 @@ function dispatcher(setting){
         });
         u.yylog(__FILE__, __LINE__, JSON.stringify(self.room2robot));
         u.yylog(__FILE__, __LINE__, JSON.stringify(self.robot2room));
-        setTimeout(self.pair_robot, 107*1000);
+        setTimeout(self.pair_robot, 77*1000);
         self.pairing = false;
     }
 
