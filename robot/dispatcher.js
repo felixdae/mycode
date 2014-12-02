@@ -30,7 +30,7 @@ function dispatcher(setting){
         }
         self.pairing = true;
         var robot_pass = 'ASD123@$888qwe';
-        self.room_list = u.shuffle(self.room_list);
+        //self.room_list = u.shuffle(self.room_list);
         self.room_list.forEach(function(room){
             if (self.room2robot[room.id] == undefined){
                 self.room2robot[room.id] = [];
