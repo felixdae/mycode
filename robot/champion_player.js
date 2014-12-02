@@ -446,6 +446,7 @@ function game(setting, user_info, game_type, check_status){
         });
         self.ws.on('close', function (){
             self.pplog(__FILE__, __LINE__, 'ws closed');
+            self.end_func(self.user_info.uid, self.room_id, 'ws closed');
             self.ws_state = 'closed';
             clearInterval(self.check_idle_id);
         });
@@ -685,7 +686,7 @@ function game(setting, user_info, game_type, check_status){
             self.pplog(__FILE__, __LINE__, 'board end', 'action: ' + action);
             if (self.game_type == 'normal'){
                 var now = new Date();
-                self.pplog(__LINE__, __FILE__, "should stop at: " + now.toISOString().replace(/T/, ' ').replace(/Z/, ''));
+                self.pplog(__FILE__, __LINE__, "should stop at: " + now.toISOString().replace(/T/, ' ').replace(/Z/, ''));
                 var ts = parseInt(now.getTime()/1000);
                 if (ts > self.service_end_time){
                     self.ws_send(self.resp_parser.req_maker.left(desk.desk_id));
@@ -784,6 +785,7 @@ function game(setting, user_info, game_type, check_status){
                 self.ws.close();    
                 self.end_func(self.user_info.uid, self.room_id, "idle for too long: " + (ts - self.last_send)/1000);
             }else if (self.game_type == 'sng'){
+                self.pplog(__FILE__, __LINE__, "will request for global game info");
                 self.ws_send(self.global_game_info());
             }else{
                 self.pplog(__FILE__, __LINE__, "unknown game_type: " + self.game_type);
