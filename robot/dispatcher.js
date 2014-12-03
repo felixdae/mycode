@@ -81,6 +81,7 @@ function dispatcher(setting){
                     var player = new game(self.setting, my_user_info, self.setting.game_type, function(uid, room_id, exit_reason){
                         u.yylog(__FILE__, __LINE__, "uid: " + uid + " exit room: " + room_id + " for reason: " + exit_reason);
                         if (!(exit_reason == 'sng start' && self.game_type == 'sng')){
+                            u.yylog(__FILE__, __LINE__, "will delete " + uid + " from self.robot2room");
                             delete self.robot2room[uid];
                         }
                         var t_arr = self.room2robot[room_id].filter(function(item){

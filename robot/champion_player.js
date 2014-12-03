@@ -446,9 +446,9 @@ function game(setting, user_info, game_type, check_status){
         });
         self.ws.on('close', function (){
             self.pplog(__FILE__, __LINE__, 'ws closed');
-            self.end_func(self.user_info.uid, self.room_id, 'ws closed');
             self.ws_state = 'closed';
             clearInterval(self.check_idle_id);
+            self.end_func(self.user_info.uid, self.room_id, 'ws closed');
         });
         self.ws.on('message', function (data, flags) {
             self.play(data);
@@ -638,6 +638,9 @@ function game(setting, user_info, game_type, check_status){
             if (msg_obj.retCode == -106000 || msg_obj.retCode == -202023){
                 self.ws.close();
                 self.end_func(self.user_info.uid, self.room_id, 'retcode: ' + msg_obj.retCode);
+                return false;
+            }
+            if (msg_obj.retCode == -101013 ||msg_obj.retCode == -203008){
                 return false;
             }
             self.ws_send(self.resp_parser.req_maker.left(msg_obj.desk_id));
