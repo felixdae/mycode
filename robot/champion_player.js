@@ -773,7 +773,8 @@ function game(setting, user_info, game_type, check_status){
             self.pplog(__FILE__, __LINE__, "ws not open");
             return false;
         }
-        //self.pplog(__FILE__, __LINE__, msg);
+        self.pplog(__FILE__, __LINE__, msg);
+        self.last_send = new Date().getTime();
         self.ws.send(msg, {binary:false, mask: true}, function(err){
             if(err){
                 self.pplog(__FILE__, __LINE__, "ws send error: " + err);
@@ -781,7 +782,6 @@ function game(setting, user_info, game_type, check_status){
                 self.end_func(self.user_info.uid, self.room_id, 'exit for ws error: ' + err);
             }
         });
-        self.last_send = new Date().getTime();
     }
 
     self.check_idle = function(){

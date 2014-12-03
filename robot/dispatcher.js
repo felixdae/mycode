@@ -23,7 +23,17 @@ function dispatcher(setting){
     self.room2robot = {};
     self.pairing = false;
     self.pair_robot = function (){
-        u.yylog(__FILE__, __LINE__);
+        //u.yylog(__FILE__, __LINE__);
+        if (self.game_type == 'sng'){
+            var num = 0;
+            for(k in self.robot2room){
+                num++;
+            }
+            if (num > 20){
+                u.yylog(__FILE__, __LINE__, "sng robot num: " + num);
+                return false;
+            }
+        }
         if (self.pairing == true){
             setTimeout(self.pair_robot, 107*1000);
             return true;
