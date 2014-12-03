@@ -24,7 +24,7 @@ function dispatcher(setting){
     self.pairing = false;
     self.pair_robot = function (){
         //u.yylog(__FILE__, __LINE__);
-        if (self.game_type == 'sng'){
+        if (self.setting.game_type == 'sng'){
             var num = 0;
             for(k in self.robot2room){
                 num++;
@@ -41,6 +41,7 @@ function dispatcher(setting){
         self.pairing = true;
         var robot_pass = 'ASD123@$888qwe';
         self.room_list = u.shuffle(self.room_list);
+        self.board_start = {};
         self.room_list.forEach(function(room){
             if (self.room2robot[room.id] == undefined){
                 self.room2robot[room.id] = [];
@@ -80,7 +81,13 @@ function dispatcher(setting){
                     var game = require('./champion_player');
                     var player = new game(self.setting, my_user_info, self.setting.game_type, function(uid, room_id, exit_reason){
                         u.yylog(__FILE__, __LINE__, "uid: " + uid + " exit room: " + room_id + " for reason: " + exit_reason);
-                        if (!(exit_reason == 'sng start' && self.game_type == 'sng')){
+                        if (!isNaN(exit_reason)){
+                            if (self.board_start[exit_reason]){
+                                return true;
+                            }
+                            self.board_start[exit_reason] = true;
+                        }
+                        if (!(isNaN(exit_reason) == false && self.setting.game_type == 'sng')){
                             u.yylog(__FILE__, __LINE__, "will delete " + uid + " from self.robot2room");
                             delete self.robot2room[uid];
                         }
@@ -108,7 +115,7 @@ function dispatcher(setting){
         self.room_list = room_list;
         self.room_list.forEach(function(room){
             if (self.setting.game_type == 'normal'){
-                self.quota[room.id] = parseInt(2+3*Math.random());
+                self.quota[room.id] = parseInt(2+2*Math.random());
             }else{
                 self.quota[room.id] = room.desk_person-1;
             }
