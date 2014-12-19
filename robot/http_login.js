@@ -125,6 +125,7 @@ function http_login(env){
 
     self.comm_request = function(req, params, doing, success, user_info){
         var http = require('http');
+        self.u.yylog(__FILE__, __LINE__, JSON.stringify(req), JSON.stringify(params));
         var qs = require('querystring');
         http.request(req, function (res) {
             var body = '';
@@ -155,7 +156,7 @@ function http_login(env){
         self.do_login(name, pass, vcode);
     }
 
-    self.apply = function(name, pass, vcode, success, match_id, room_id){
+    self.apply = function(name, pass, vcode, match_id, room_id, success){
         self.type = 'apply';
         self.match_id = match_id;
         self.room_id = room_id;
@@ -283,7 +284,7 @@ function http_login(env){
             uid : user_info.uid,
             version: '1',
             from_where : self.from_where,
-            room_id:self.room_id;
+            room_id:self.room_id
         };
         params.urlsign = self.make_urlsign(params, user_info.md5key);
         self.comm_request(req, params, 6, self.req_ok, user_info);
@@ -305,7 +306,7 @@ function http_login(env){
             version: '1',
             uid : user_info.uid,
             from_where : self.from_where,
-            room_id:self.room_id;
+            room_id:self.room_id
         };
         params.urlsign = self.make_urlsign(params, user_info.md5key);
         self.comm_request(req, params, 7, self.req_ok, user_info);

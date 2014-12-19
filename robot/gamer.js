@@ -13,7 +13,7 @@ function main(){
         setting.room_id = process.argv[6];
         setting.limit = process.argv[7];//人数
         var matcher = require('./match');
-        var gamer = new match();
+        var gamer = new matcher(setting);
         gamer.run();
     }
 }

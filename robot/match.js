@@ -6,7 +6,6 @@ function match(setting){
     var u = require('./utility');
     var authenticator = require('./http_login');
     self.loginer = new authenticator(self.setting.env);
-    self.roomer = new authenticator(self.setting.env);
     self.fs = require('fs');
 
     self.run = function(){
@@ -16,7 +15,11 @@ function match(setting){
         self.robot_list = u.shuffle(self.robot_list);
         self.robot_list = self.robot_list.slice(0, self.setting.limit);
         self.robot_list.forEach(function(robot){
-            self.loginer.login(robot[1], robot_pass, '', function(user_info){
+            self.loginer.apply(robot[1], robot_pass, '', self.setting.match_id, self.setting.room_id, function(user_info){
+            //self.loginer.apply('13661314855', u.md5('123456'), '', self.setting.match_id, self.setting.room_id, function(user_info){
+                u.yylog(__FILE__, __LINE__);
+
+                return;
                 var my_user_info = u.clone(user_info);
 
                 var game = require('./champion_player');
