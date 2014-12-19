@@ -58,6 +58,10 @@ function req_maker(user_info){//desk
             return self.make_msg({op:"lobby/game/getUserGameInfo", deskId:desk_id});
         return self.make_msg({op:"lobby/game/getUserGameInfo"});
     }
+
+    self.ping = function(){
+        return self.make_msg({op:"lobby/chat/ping"});
+    }
 }
 
 function resp_parser(user_info){
@@ -474,8 +478,9 @@ function game(setting, user_info, game_type, check_status){
         }else if(self.game_type == 'sng'){
             self.first_req = self.sit_down(self.room_id, sng_room_type);
         }else if(self.game_type == 'champion'){
-            var match_id = self.room_id;
-            self.first_req = self.join_match(match_id, champion_room_type);
+            //var match_id = self.room_id;
+            //self.first_req = self.join_match(match_id, champion_room_type);
+            self.first_req = self.ping();
         }else{
             self.pplog(__FILE__, __LINE__, "unknown game_type");
             return;
@@ -491,6 +496,10 @@ function game(setting, user_info, game_type, check_status){
 
     self.join_match = function(match_id, room_type){
         return self.resp_parser.req_maker.sit_down(match_id, room_type);
+    }
+
+    self.ping = function(){
+        return self.resp_parser.req_maker.ping();
     }
 
     self.global_game_info = function(desk_id){
@@ -658,6 +667,11 @@ function game(setting, user_info, game_type, check_status){
             }
             return true;
         }
+        if (action == self.LC_BROADCAST_ACTION_TYPE_START_MATCH_NOTICE){
+            self.pplog(__FILE__, __LINE__, JSON.stringify(msg_obj));
+            process.exit(1);
+            return true;
+        }
 
         var desk_id = parseInt(msg_obj.desk_id);
         var desk = self.desk_list[desk_id];
@@ -737,11 +751,12 @@ function game(setting, user_info, game_type, check_status){
             return true;
         } else if (action == self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_SNG_MATCH_END
                 || action == self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_SIT_DOWN_MONITOR){//game end
-            if (self.game_type != 'sng'){
+            //if (self.game_type != 'sng'){
+            if (self.game_type == 'normal'){
                 return true;
             }
             self.ws.close();
-            self.end_func(self.user_info.uid, self.room_id, 'exit from sng match: ' + self.room_id);
+            self.end_func(self.user_info.uid, self.room_id, 'exit from match: ' + self.room_id);
         } else if (action == self.LC_BROADCAST_ACTION_TYPE_NOTICE_ACTIVE_USER){//need to delay
             self.sleep = 0;
             var r = Math.random();
