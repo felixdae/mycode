@@ -85,8 +85,10 @@ function http_login(env){
 
             if (self.type == 'login'){
                 self.login_success(user_info);
-            }else{
+            }else if (self.type == 'room'){
                 self.get_room_info(self.game, user_info);
+            }else{
+                self.apply_match(user_info);
             }
         }else if(doing == 3){
             var room_info = [];
@@ -109,6 +111,12 @@ function http_login(env){
                 }
             }
             self.room_success(room_info);
+        }else if(doing == 6){
+            self.u.yylog(__FILE__, __LINE__, doing, response);
+            setTimeout(self.query_match, 1*1000, user_info);
+        }else if(doing == 7){
+            self.u.yylog(__FILE__, __LINE__, doing, response);
+            self.apply_success(user_info);
         }else{
             self.u.yylog(__FILE__, __LINE__, doing, response);
             throw 'unknown doing';
@@ -144,6 +152,14 @@ function http_login(env){
         //self.do_upload = upload_key;
         self.type = 'login';
         self.login_success = success;
+        self.do_login(name, pass, vcode);
+    }
+
+    self.apply = function(name, pass, vcode, success, match_id, room_id){
+        self.type = 'apply';
+        self.match_id = match_id;
+        self.room_id = room_id;
+        self.apply_success = success;
         self.do_login(name, pass, vcode);
     }
 
@@ -249,6 +265,50 @@ function http_login(env){
         };
         params.urlsign = self.make_urlsign(params, user_info.md5key);
         self.comm_request(req, params, 5, self.req_ok, user_info);
+    }
+
+    self.apply_match = function(user_info){
+        var route = 'tournament/application/apply';
+        var req={
+            hostname: self.http_hostname,
+            port: self.http_port,
+            path: '/index.php?r=' + route,
+            method: 'POST',
+            headers:{'Content-Type': 'application/x-www-form-urlencoded'}
+        }
+
+        var params = {
+            lua_version : '1.0.0.0',
+            session_id : user_info.session_id,
+            uid : user_info.uid,
+            version: '1',
+            from_where : self.from_where,
+            room_id:self.room_id;
+        };
+        params.urlsign = self.make_urlsign(params, user_info.md5key);
+        self.comm_request(req, params, 6, self.req_ok, user_info);
+    }
+
+    self.query_match = function(user_info){
+        var route = 'tournament/application/getApplyState';
+        var req={
+            hostname: self.http_hostname,
+            port: self.http_port,
+            path: '/index.php?r=' + route,
+            method: 'POST',
+            headers:{'Content-Type': 'application/x-www-form-urlencoded'}
+        }
+
+        var params = {
+            lua_version : '1.0.0.0',
+            session_id : user_info.session_id,
+            version: '1',
+            uid : user_info.uid,
+            from_where : self.from_where,
+            room_id:self.room_id;
+        };
+        params.urlsign = self.make_urlsign(params, user_info.md5key);
+        self.comm_request(req, params, 7, self.req_ok, user_info);
     }
 }
 
