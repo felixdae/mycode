@@ -48,6 +48,7 @@ function http_login(env){
             to_sign += k + sparams[k];
         }
         to_sign += md5key;
+        //self.u.yylog(__FILE__, __LINE__, to_sign);
         return self.u.md5(to_sign);
     }
 
@@ -56,7 +57,7 @@ function http_login(env){
         try{
             resp_obj = JSON.parse(response);
         }catch(e){
-            self.u.yylog(__FILE__, __LINE__, 'exception: ' + e);
+            self.u.yylog(__FILE__, __LINE__, 'exception: ' + e + response);
             return false;
         }
         var retcode = (resp_obj.retcode===undefined? resp_obj.retCode:resp_obj.retcode);
@@ -125,7 +126,6 @@ function http_login(env){
 
     self.comm_request = function(req, params, doing, success, user_info){
         var http = require('http');
-        self.u.yylog(__FILE__, __LINE__, JSON.stringify(req), JSON.stringify(params));
         var qs = require('querystring');
         http.request(req, function (res) {
             var body = '';
@@ -158,6 +158,7 @@ function http_login(env){
 
     self.apply = function(name, pass, vcode, match_id, room_id, success){
         self.type = 'apply';
+        //self.u.yylog(__FILE__, __LINE__, name, pass, vcode, match_id, room_id);
         self.match_id = match_id;
         self.room_id = room_id;
         self.apply_success = success;
@@ -165,6 +166,7 @@ function http_login(env){
     }
 
     self.do_login = function(name, pass, vcode){
+        //self.u.yylog(__FILE__, __LINE__, name, pass, vcode);
         if (vcode == undefined){
             vcode = '';
         }
@@ -284,7 +286,8 @@ function http_login(env){
             uid : user_info.uid,
             version: '1',
             from_where : self.from_where,
-            room_id:self.room_id
+            room_id:self.room_id,
+            r:route
         };
         params.urlsign = self.make_urlsign(params, user_info.md5key);
         self.comm_request(req, params, 6, self.req_ok, user_info);
@@ -306,7 +309,8 @@ function http_login(env){
             version: '1',
             uid : user_info.uid,
             from_where : self.from_where,
-            room_id:self.room_id
+            room_id:self.room_id,
+            r:route
         };
         params.urlsign = self.make_urlsign(params, user_info.md5key);
         self.comm_request(req, params, 7, self.req_ok, user_info);
