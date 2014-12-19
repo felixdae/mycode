@@ -453,6 +453,10 @@ function game(setting, user_info, game_type, check_status){
         self.ws.on('message', function (data, flags) {
             self.play(data);
         });
+        self.ws.on('error', function (err) {
+            self.pplog(__FILE__, __LINE__, err);
+            self.ws.close();
+        });
     }
 
     self.open_ws();
@@ -690,8 +694,7 @@ function game(setting, user_info, game_type, check_status){
         }
         if (action == self.LC_BROADCAST_ACTION_TYPE_END_BOARD
                 || action == self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_HOSTING
-                || action == self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_STANDUP_MONITOR
-                || action == self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_SIT_DOWN_MONITOR){//board end
+                || action == self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_STANDUP_MONITOR){//board end
             self.resp_parser.resp_end_board(msg_obj, desk);
             self.pplog(__FILE__, __LINE__, 'board end', 'action: ' + action);
             if (self.game_type == 'normal'){
@@ -732,7 +735,8 @@ function game(setting, user_info, game_type, check_status){
             self.ws.close();
             self.end_func(self.user_info.uid, self.room_id, 'action: ' + action + ", exit from: " + self.room_id);
             return true;
-        } else if (action == self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_SNG_MATCH_END){//game end
+        } else if (action == self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_SNG_MATCH_END
+                || action == self.LC_BROADCAST_ACTION_TYPE_LEFT_ROOM_SIT_DOWN_MONITOR){//game end
             if (self.game_type != 'sng'){
                 return true;
             }

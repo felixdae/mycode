@@ -9,15 +9,15 @@ function dispatcher(setting){
     self.roomer = new authenticator(self.setting.env);
     self.fs = require('fs');
 
-    self.sync_user_info = function(robot_list){
-        u.yylog(__FILE__, __LINE__);
-        var file_data = JSON.stringify(robot_list, null, 2);
-        self.fs.writeFile(self.setting.user_file, file_data, function (err) {
-            if (err) throw err;
-            u.yylog(__FILE__, __LINE__, 'robot user file synced');
-        });
-        setTimeout(self.sync_user_info, 31*60*1000, robot_list);
-    }
+//    self.sync_user_info = function(robot_list){
+//        u.yylog(__FILE__, __LINE__);
+//        var file_data = JSON.stringify(robot_list, null, 2);
+//        self.fs.writeFile(self.setting.user_file, file_data, function (err) {
+//            if (err) throw err;
+//            u.yylog(__FILE__, __LINE__, 'robot user file synced');
+//        });
+//        setTimeout(self.sync_user_info, 31*60*1000, robot_list);
+//    }
 
     self.robot2room = {};
     self.room2robot = {};
@@ -54,7 +54,7 @@ function dispatcher(setting){
                 if (self.room2robot[room.id].length >= self.quota[room.id]){
                     return true;
                 }
-                if (self.setting.game_type == 'normal' && robot[2] < room.min_chip){
+                if (self.setting.game_type == 'normal' && 10000 < room.min_chip){
                     return false;
                 }
                 if (self.setting.game_type == 'sng'){
@@ -135,7 +135,7 @@ function dispatcher(setting){
         var file_data = self.fs.readFileSync(self.setting.user_file);
         self.robot_list = JSON.parse(file_data);
         self.refresh_room_list();
-        setTimeout(self.sync_user_info, 31*60*1000, self.robot_list);
+        //setTimeout(self.sync_user_info, 31*60*1000, self.robot_list);
     }
 }
 
