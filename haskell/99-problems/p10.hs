@@ -1,4 +1,4 @@
-import P9
+import LP9
 
 encode x = map (\g -> (length g, head g)) $ pack x
 

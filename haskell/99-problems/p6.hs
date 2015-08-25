@@ -1,4 +1,4 @@
-import P5
+import LP5
 
 isPalindrome x = (x == myReverse x)
 

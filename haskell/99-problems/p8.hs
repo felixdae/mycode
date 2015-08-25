@@ -1,4 +1,4 @@
-import P5
+import LP5
 
 compress [] = []
 compress (x:xs) = myReverse $ myCompress xs [x]
