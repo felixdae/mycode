@@ -1,4 +1,6 @@
-data Comp = Multiple n c|Single c
+import LP9
+
+data Comp c = Multiple Int c|Single c deriving (Show)
 
 listToComp l
     |(length l) == 1 = Single (head l)
