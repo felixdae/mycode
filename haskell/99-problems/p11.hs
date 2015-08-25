@@ -1,6 +1,5 @@
 import LP9
-
-data Comp c = Multiple Int c|Single c deriving (Show)
+import LP11
 
 listToComp l
     |(length l) == 1 = Single (head l)
