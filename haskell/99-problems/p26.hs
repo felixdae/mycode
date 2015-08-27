@@ -1,4 +1,9 @@
-import Qs
+import PnC
+-- import Qs
+-- 
+-- main = do
+--     print $ quickSort (<=) "fuiewofjka890809809fdsalffjkdsalnuriajkf"
+
 
 main = do
-    print $ quickSort (<=) "fuiewofjka890809809fdsalffjkdsalnuriajkf"
+    print $ combs 3 "abcdef"
