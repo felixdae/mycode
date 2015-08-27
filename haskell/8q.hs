@@ -1,16 +1,16 @@
 import Data.List (permutations)
 -- import Debug.Trace (trace)
-sameRow (ar, ac) (br, bc) = ar /= br
-sameDiag (ar, ac) (br, bc) = (ar - ac) /= (br - bc)
-sameRDiag (ar, ac) (br, bc) = (ar + ac) /= (br + bc)
+sameRow (ar, ac) (br, bc) = ar == br
+sameDiag (ar, ac) (br, bc) = (ar - ac) == (br - bc)
+sameRDiag (ar, ac) (br, bc) = (ar + ac) == (br + bc)
 
 check cmp a b = cmp a b
 
 checkAgainst _ _ _ [] = True
 -- checkAgainst i x j (y:ys) = (sameRow (x, i) (y, j))
 --                             && (sameDiag (x, i) (y, j))
-checkAgainst i x j (y:ys) = (sameDiag (x, i) (y, j))
-                            && (sameRDiag (x, i) (y, j))
+checkAgainst i x j (y:ys) = (not (sameDiag (x, i) (y, j)))
+                            && (not (sameRDiag (x, i) (y, j)))
                             && (checkAgainst i x (j+1) ys)
 
 gCheck _ [] = True
