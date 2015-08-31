@@ -1,5 +1,5 @@
 -- import Debug.Trace (trace)
-import Gcd
+import Nt
    
 
 main = do
