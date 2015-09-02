@@ -31,3 +31,6 @@ main = do
     print $ cbt 4
     print $ cbt 7
     print $ testCbt [cbt 7]
+    print $ testCbt [cbt 12]
+    print $ testCbt [cbt 11]
+    print $ testCbt [Node 1 (Node 2 (Node 4 EmptyTree EmptyTree) EmptyTree) (Node 3 (Node 6 EmptyTree EmptyTree) (Node 7 EmptyTree EmptyTree))]
