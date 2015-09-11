@@ -1,5 +1,5 @@
--- import Data.List
-import Data.Set hiding (map)
+import Data.List
+-- import Data.Set hiding (map)
 -- import Debug.Trace (trace)
 
 isSameCell rc xy
@@ -27,18 +27,21 @@ sameRow (r,c) layout = [z | ((x,y),z) <- layout, x == r]
 sameCol (r,c) layout = [z | ((x,y),z) <- layout, y == c]
 sameCell (r,c) layout = [z | ((x,y),z) <- layout, isSameCell (r,c) (x,y)]
 
-getBlankPos layout = toList (difference (fromList [(x,y) | x <- [0..8], y <- [0..8]]) (fromList (map (\(p,_)->p) layout)))
+-- getBlankPos layout = toList (difference (fromList [(x,y) | x <- [0..8], y <- [0..8]]) (fromList (map (\(p,_)->p) layout)))
+getBlankPos layout = [(x,y) | x <- [0..8], y <- [0..8]] \\ (map (\(p,_)->p) layout)
 
-getCandidate layout = map (\x -> (x, toList (difference (difference (difference (fromList [1..9]) (fromList (sameRow x layout))) (fromList (sameCol x layout))) (fromList (sameCell x layout))))) $ getBlankPos layout
+-- getCandidate layout = map (\x -> (x, toList (difference (difference (difference (fromList [1..9]) (fromList (sameRow x layout))) (fromList (sameCol x layout))) (fromList (sameCell x layout))))) $ getBlankPos layout
+getCandidate layout = map (\x -> (x, (([1..9] \\ (sameRow x layout)) \\ (sameCol x layout)) \\ (sameCell x layout))) $ getBlankPos layout
 
 searchCandidate [] = error "no fix condidate"
 searchCandidate (((x,y),[n]):cs) = ((x,y),n)
 searchCandidate (_:cs) = searchCandidate cs
 
 updateCandidate ((r,c),n) (((x,y),zs):cs)
-    |r == x = ((x,y),toList (difference (fromList zs) (fromList [n]))):(updateCandidate ((r,c),n) cs)
-    |c == y = ((x,y),toList (difference (fromList zs) (fromList [n]))):(updateCandidate ((r,c),n) cs)
-    |isSameCell (r,c) (x,y) = ((x,y),toList (difference (fromList zs) (fromList [n]))):(updateCandidate ((r,c),n) cs)
+    -- |r == x = ((x,y),toList (difference (fromList zs) (fromList [n]))):(updateCandidate ((r,c),n) cs)
+    -- |c == y = ((x,y),toList (difference (fromList zs) (fromList [n]))):(updateCandidate ((r,c),n) cs)
+    -- |isSameCell (r,c) (x,y) = ((x,y),toList (difference (fromList zs) (fromList [n]))):(updateCandidate ((r,c),n) cs)
+    |isSameCell (r,c) (x,y) || (r == x) || (c == y) = ((x,y),  zs \\ [n]):(updateCandidate ((r,c),n) cs)
     |otherwise = (((x,y),zs):(updateCandidate ((r,c),n) cs))
 
 solveSudoku layout candidates
