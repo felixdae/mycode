@@ -1,6 +1,6 @@
 import Data.List
 -- import Data.Set hiding (map)
-import Debug.Trace (trace)
+-- import Debug.Trace (trace)
 
 isSameCell rc xy
     |in1Cell rc && in1Cell xy = True
@@ -38,31 +38,43 @@ getCandidate layout = map (\x -> (x, (([1..9] \\ sameRow x layout) \\ sameCol x 
 -- searchCandidate (_:cs) = searchCandidate cs
 
 searchCandidate :: [((Int, Int), [Int])] -> ((Int, Int), [Int])
-searchCandidate candidates = foldr (\a@(_, e) b@(_, acc) -> if length e < length acc then a else b) (head candidates) candidates
+searchCandidate [] = error "empty candidates"
+searchCandidate candidates = {- trace (show candidates ++ "00000") -}foldr (\a@(_, e) b@(_, acc) -> if length e < length acc then a else b) (head candidates) candidates
 
 updateCandidate _ [] = []
 updateCandidate ((r,c),n) (((x,y),zs):cs)
     -- |r == x = ((x,y),toList (difference (fromList zs) (fromList [n]))):(updateCandidate ((r,c),n) cs)
     -- |c == y = ((x,y),toList (difference (fromList zs) (fromList [n]))):(updateCandidate ((r,c),n) cs)
     -- |isSameCell (r,c) (x,y) = ((x,y),toList (difference (fromList zs) (fromList [n]))):(updateCandidate ((r,c),n) cs)
-    |isSameCell (r,c) (x,y) || (r == x) || (c == y) = ((x,y),  zs \\ [n]):updateCandidate ((r,c),n) cs
+    |(r == x) && (c == y) = updateCandidate ((r,c),n) cs
+    |isSameCell (r,c) (x,y) || (r == x) || (c == y) = if null zsdn then updateCandidate ((r,c),n) cs else ((x,y),  zsdn):updateCandidate ((r,c),n) cs
     |otherwise = ((x,y),zs):updateCandidate ((r,c),n) cs
+        where
+        zsdn = zs \\ [n]
 
 solveSudoku layout candidates
-    |length layout == 81 = layout
-    |otherwise = trace (show newFix) solveSudoku (newFix:layout) (updateCandidate newFix candidates)
+    |length layout == 81 = [layout]
+    |length candidates + length layout < 81 = []
+    -- |otherwise = {- trace (show newFix) -}solveSudoku (newFix:layout) (updateCandidate newFix candidates)
+    |otherwise = {-trace (show layout ++ "\n" ++ show candidates) -}foldr (++) [] (map (\x -> solveSudoku (x:layout) (updateCandidate x candidates)) newFix)
         where
-        newFix = (fst (searchCandidate candidates), head (snd (searchCandidate candidates)))
+        -- newFix = {- trace (show searchRes) -}fst searchRes, head (snd searchRes))
+        newFix = [((x,y),z) | ((x,y),zs) <- [searchRes], z<-zs]
+            where
+            searchRes = searchCandidate candidates
 
 calcSudoku layout = solveSudoku layout (getCandidate layout)
 
-collectRes :: Int->[((Int,Int),Int)]->String
-collectRes n layout
+collectRes :: [[((Int,Int),Int)]]->String
+collectRes = concatMap ((++"\n") . collectOneRes 0)
+
+collectOneRes :: Int->[((Int,Int),Int)]->String
+collectOneRes n layout
     |n > 80 = ""
-    |otherwise = show (head [z | ((x,y),z) <- layout, (9*x+y)==n]) ++ (if mod (n+1) 9 == 0 then "\n" else " ") ++ collectRes (n+1) layout
+    |otherwise = show (head [z | ((x,y),z) <- layout, (9*x+y)==n]) ++ (if mod (n+1) 9 == 0 then "\n" else " ") ++ collectOneRes (n+1) layout
 
 main = do
     contents <- getContents
-    putStr $ collectRes 0 (calcSudoku (map (\(r:' ':c:' ':[n]) -> (((read [r]::Int) - 1, (read [c]::Int) - 1), read [n]::Int)) (lines contents)))
+    putStr $ collectRes (calcSudoku (map (\(r:' ':c:' ':[n]) -> (((read [r]::Int) - 1, (read [c]::Int) - 1), read [n]::Int)) (lines contents)))
     -- print $ (calcSudoku (map (\(r:' ':c:' ':[n]) -> (((((read [r])::Int) - 1), (((read [c])::Int) - 1)), (read [n])::Int)) (lines contents)))
     -- print contents
