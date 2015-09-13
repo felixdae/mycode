@@ -56,7 +56,7 @@ solveSudoku layout candidates
     |length layout == 81 = [layout]
     |length candidates + length layout < 81 = []
     -- |otherwise = {- trace (show newFix) -}solveSudoku (newFix:layout) (updateCandidate newFix candidates)
-    |otherwise = {-trace (show layout ++ "\n" ++ show candidates) -}foldr (++) [] (map (\x -> solveSudoku (x:layout) (updateCandidate x candidates)) newFix)
+    |otherwise = {-trace (show layout ++ "\n" ++ show candidates) -}concatMap (\x -> solveSudoku (x:layout) (updateCandidate x candidates)) newFix
         where
         -- newFix = {- trace (show searchRes) -}fst searchRes, head (snd searchRes))
         newFix = [((x,y),z) | ((x,y),zs) <- [searchRes], z<-zs]
@@ -73,8 +73,16 @@ collectOneRes n layout
     |n > 80 = ""
     |otherwise = show (head [z | ((x,y),z) <- layout, (9*x+y)==n]) ++ (if mod (n+1) 9 == 0 then "\n" else " ") ++ collectOneRes (n+1) layout
 
+makeAPuzzle ln = doMakePuzzle (zip [0..] ln)
+    where
+    doMakePuzzle [] = []
+    doMakePuzzle ((o,n):zs)
+        |n == '.' = doMakePuzzle zs
+        |otherwise = ((div o 9, mod o 9), read [n]::Int):doMakePuzzle zs
+
 main = do
     contents <- getContents
-    putStr $ collectRes (calcSudoku (map (\(r:' ':c:' ':[n]) -> (((read [r]::Int) - 1, (read [c]::Int) - 1), read [n]::Int)) (lines contents)))
-    -- print $ (calcSudoku (map (\(r:' ':c:' ':[n]) -> (((((read [r])::Int) - 1), (((read [c])::Int) - 1)), (read [n])::Int)) (lines contents)))
-    -- print contents
+    let allInput = map makeAPuzzle (lines contents)
+    -- input like 1 2 3\n1 3 5..
+    -- putStr $ collectRes (calcSudoku (map (\(r:' ':c:' ':[n]) -> (((read [r]::Int) - 1, (read [c]::Int) - 1), read [n]::Int)) (lines contents)))
+    mapM (putStr . collectRes . calcSudoku) allInput
