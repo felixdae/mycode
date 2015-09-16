@@ -67,31 +67,47 @@ parseListOfList parser str = case regularParse parser str of
     Left _ -> []
     Right l -> l
 
-makePsb 1 s = [[s]]
-makePsb n s = concatMap (\x -> [x:y | y <- makePsb (n-1) (s-x)]) [0..s]
+-- makePsb 1 s = [[s]]
+-- makePsb n s = concatMap (\x -> [x:y | y <- makePsb (n-1) (s-x)]) [0..s]
+-- 
+-- genRcPsbLayout _ [] = []
+-- genRcPsbLayout s ln
+--     |(sum ln) + (length ln) - 1 > s = []
+--     |otherwise = map (makeAllRcLayout 0 ln) (makePsb (length ln + 1) (s - ((sum ln) + (length ln) - 1)))
+--         where
+--         makeAllRcLayout _ [] [] = []
+--         makeAllRcLayout start [ys] [ns] = (map (\x -> (start + x, 1)) [0..(ys-1)]) ++ makeAllRcLayout (start + ys) [] [ns]
+--         makeAllRcLayout start ln psb
+--             |length psb > length ln = (map (\x -> (start + x, 0)) [0..(head psb-1)]) ++ makeAllRcLayout (start + (head psb)) ln (tail psb)
+--             |otherwise = (map (\x -> (start + x, 1)) [0..(head ln-1)]) ++ [((start + head ln),0)] ++ makeAllRcLayout (start + 1 + (head ln)) (tail ln) psb
+-- 
+makePsb 1 s = [[s+1]]
+makePsb n s = concatMap (\x -> [(x+1):y | y <- makePsb (n-1) (s-x)]) [0..s] -- x+1 add back space
 
 genRcPsbLayout _ [] = []
 genRcPsbLayout s ln
     |(sum ln) + (length ln) - 1 > s = []
-    |otherwise = map (makeAllRcLayout 0 ln) (makePsb (length ln + 1) (s - ((sum ln) + (length ln) - 1)))
+    |otherwise = map (makeAllRcLayout ln) (makePsb (length ln + 1) (s - ((sum ln) + (length ln) - 1)))
         where
-        makeAllRcLayout _ [] [] = []
-        makeAllRcLayout start [ys] [ns] = (map (\x -> (start + x, 1)) [0..(ys-1)]) ++ makeAllRcLayout (start + ys) [] [ns]
-        makeAllRcLayout start ln psb
-            |length psb > length ln = (map (\x -> (start + x, 0)) [0..(head psb-1)]) ++ makeAllRcLayout (start + (head psb)) ln (tail psb)
-            |otherwise = (map (\x -> (start + x, 1)) [0..(head ln-1)]) ++ [((start + head ln),0)] ++ makeAllRcLayout (start + 1 + (head ln)) (tail ln) psb
+        makeAllRcLayout ln psb = zip [0..] (tail (concatMap (\ (z, o) -> replicate z 0 ++ replicate o 1) (zip psb ln)) ++ replicate (last psb - 1) 0)
+        -- makeAllRcLayout _ [] [] = []
+        -- makeAllRcLayout start [ys] [ns] = (map (\x -> (start + x, 1)) [0..(ys-1)]) ++ makeAllRcLayout (start + ys) [] [ns]
+        -- makeAllRcLayout start ln psb
+        --     |length psb > length ln = (map (\x -> (start + x, 0)) [0..(head psb-1)]) ++ makeAllRcLayout (start + (head psb)) ln (tail psb)
+        --     |otherwise = (map (\x -> (start + x, 1)) [0..(head ln-1)]) ++ [((start + head ln),0)] ++ makeAllRcLayout (start + 1 + (head ln)) (tail ln) psb
 
 
 checkLayout rcl [] = False
 checkLayout rcl (psb:rcPsb)
-    |harmony rcl psb = True
+    -- |harmony rcl psb = True
+    |all (`elem` psb) rcl = True
     |otherwise = checkLayout rcl rcPsb
-        where
-        harmony [] p = True
-        harmony (x:xs) p
-            |elem x p = harmony xs p
-            |otherwise = False
-        -- harmony l p = foldr (`elem` p) True l
+    --     where
+    --     harmony [] p = True
+    --     harmony (x:xs) p
+    --         |elem x p = harmony xs p
+    --         |otherwise = False
+    --     -- harmony l p = foldr (`elem` p) True l
 
 collectRow r layout = map (\((_,y), n) -> (y,n)) (filter (\((x,_), _) -> x==r) layout)
 collectCol c layout = map (\((x,_), n) -> (x,n)) (filter (\((_,y), _) -> y==c) layout)
@@ -100,18 +116,27 @@ cst l = map sum (filter (\x -> head x == 1) (group (map (\(_, x) -> x) l)))
 testGenRcPsbLayout ori s res = map (\x -> cst x == ori && s == length x && tpos x) res
 tpos l = map (\(x,_)->x) l == [0..length l - 1]
 
-getDetPoint allRowPsb allColPsb = S.toList (S.fromList (getDetPointByRow 0 allRowPsb ++ getDetPointByCol 0 allColPsb))
+getDetPoint allRowPsb allColPsb = S.toList (S.fromList (getDetPointByRow allRowPsb ++ getDetPointByCol allColPsb))
     where
-    getDetPointByRow ri [] = []
-    -- getDetPointByRow ri (rp:rps) = filter (\ (_,k) -> k /= 2) (map (\ (y,n) -> ((ri,y),n)) (zip [0..] (foldr (\x acc -> zipWith (\a b -> if a==b then a else 2) x acc) (head rp) rp))) ++ getDetPointByRow (ri+1) rps
-    getDetPointByRow ri (rp:rps) = filter (\ (_,k) -> k /= 2) 
+    getDetPointByRow arp = foldr (\ (ri, rp) acc -> filter (\ (_,k) -> k /= 2) 
         (map (\ (y,n) -> ((ri,y),n)) 
-            (foldr (\x acc -> zipWith (\ (t, a) (_, b) -> if a==b then (t, a) else (t,2)) x acc) (head rp) rp)) ++ getDetPointByRow (ri+1) rps
-    getDetPointByCol ci [] = []
-    getDetPointByCol ci (cp:cps) = filter (\ (_,k) -> k /= 2) 
+            (foldr (\x acc -> zipWith (\ (t, a) (_, b) -> if a==b then (t, a) else (t,2)) x acc) (head rp) rp)) ++ acc) [] (zip [0..] arp)
+    getDetPointByCol acp = foldr (\ (ci, cp) acc -> filter (\ (_,k) -> k /= 2) 
         (map (\ (x,n) -> ((x,ci),n)) 
-            (foldr (\x acc -> zipWith (\ (t, a) (_, b) -> if a==b then (t, a) else (t,2)) x acc) (head cp) cp)) ++ getDetPointByCol (ci+1) cps
+            (foldr (\x acc -> zipWith (\ (t, a) (_, b) -> if a==b then (t, a) else (t,2)) x acc) (head cp) cp)) ++ acc) [] (zip [0..] acp)
 
+-- getDetPoint allRowPsb allColPsb = S.toList (S.fromList (getDetPointByRow 0 allRowPsb ++ getDetPointByCol 0 allColPsb))
+--     where
+--     getDetPointByRow ri [] = []
+--     -- getDetPointByRow ri (rp:rps) = filter (\ (_,k) -> k /= 2) (map (\ (y,n) -> ((ri,y),n)) (zip [0..] (foldr (\x acc -> zipWith (\a b -> if a==b then a else 2) x acc) (head rp) rp))) ++ getDetPointByRow (ri+1) rps
+--     getDetPointByRow ri (rp:rps) = filter (\ (_,k) -> k /= 2) 
+--         (map (\ (y,n) -> ((ri,y),n)) 
+--             (foldr (\x acc -> zipWith (\ (t, a) (_, b) -> if a==b then (t, a) else (t,2)) x acc) (head rp) rp)) ++ getDetPointByRow (ri+1) rps
+--     getDetPointByCol ci [] = []
+--     getDetPointByCol ci (cp:cps) = filter (\ (_,k) -> k /= 2) 
+--         (map (\ (x,n) -> ((x,ci),n)) 
+--             (foldr (\x acc -> zipWith (\ (t, a) (_, b) -> if a==b then (t, a) else (t,2)) x acc) (head cp) cp)) ++ getDetPointByCol (ci+1) cps
+-- 
 solveNonogram rowCons colCons = trySolve 0 (getDetPoint allRowPsb allColPsb)
     where
     rn = length rowCons
