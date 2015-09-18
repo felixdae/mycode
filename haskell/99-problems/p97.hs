@@ -1,6 +1,6 @@
 import Data.List
--- import Data.Set hiding (map)
--- import Debug.Trace (trace)
+import qualified Data.Set as S
+import Debug.Trace (trace)
 
 isSameCell rc xy
     |in1Cell rc && in1Cell xy = True
@@ -31,7 +31,7 @@ sameCell (r,c) layout = [z | ((x,y),z) <- layout, isSameCell (r,c) (x,y)]
 getBlankPos layout = [(x,y) | x <- [0..8], y <- [0..8]] \\ map fst layout
 
 -- getCandidate layout = map (\x -> (x, toList (difference (difference (difference (fromList [1..9]) (fromList (sameRow x layout))) (fromList (sameCol x layout))) (fromList (sameCell x layout))))) $ getBlankPos layout
-getCandidate layout = map (\x -> (x, (([1..9] \\ sameRow x layout) \\ sameCol x layout) \\ sameCell x layout)) $ getBlankPos layout
+getCandidate layout = {- trace (show $ getBlankPos layout)-} map (\x -> (x, (([1..9] \\ sameRow x layout) \\ sameCol x layout) \\ sameCell x layout)) $ getBlankPos layout
 
 -- searchCandidate [] = error "no fix condidate"
 -- searchCandidate (((x,y),[n]):cs) = ((x,y),n)
@@ -52,18 +52,39 @@ updateCandidate ((r,c),n) (((x,y),zs):cs)
         where
         zsdn = zs \\ [n]
 
+mergeCandidates pcdt = S.toList . S.fromList $ concatMap snd pcdt
+
+deepUpdateCandidatesOfOne ((x,y),_) candidates = deepUpdateCandidates candidates $ filter (\ ((r,c),_) -> (r == x && c /= y) || (r /= x && c == y) || (isSameCell (r,c) (x,y) && (r /= x || c /= y))) candidates
+deepUpdateCandidates _ [] = []
+deepUpdateCandidates candidates (psb@(pos,_):psbs)
+    | length (sameRowDiff psb) > 1 = {-trace (show candidates ++ "lllll" ++ show psb ++ "111" ++ show (sameRowDiff psb))-} []
+    | length (sameRowDiff psb) == 1 = {-trace (show psb ++ "111" ++ show (sameRowDiff psb))-} (pos, sameRowDiff psb):deepUpdateCandidates candidates psbs
+    | length (sameColDiff psb) > 1 = {-trace (show psb ++ "222" ++ show (sameColDiff psb))-} []
+    | length (sameColDiff psb) == 1 = {-trace (show psb ++ "222" ++ show (sameColDiff psb))-} (pos, sameColDiff psb):deepUpdateCandidates candidates psbs
+    | length (sameCellDiff psb) > 1 = {-trace (show psb ++ "333" ++ show (sameCellDiff psb))-} []
+    | length (sameCellDiff psb) == 1 = {-trace (show psb ++ "333" ++ show (sameCellDiff psb))-} (pos, sameCellDiff psb):deepUpdateCandidates candidates psbs
+    | otherwise = psb : deepUpdateCandidates candidates psbs
+        where
+        sameRowDiff ((x,y),cs) = cs \\ mergeCandidates (filter (\ ((r,c),_) -> r == x && c /= y) candidates)
+        sameColDiff ((x,y),cs) = cs \\ mergeCandidates (filter (\ ((r,c),_) -> r /= x && c == y) candidates)
+        sameCellDiff ((x,y),cs) = cs \\ mergeCandidates (filter (\ ((r,c),_) -> isSameCell (r,c) (x,y) && (r /= x || c /= y)) candidates)
+
 solveSudoku layout candidates
     |length layout == 81 = [layout]
     |length candidates + length layout < 81 = []
     -- |otherwise = {- trace (show newFix) -}solveSudoku (newFix:layout) (updateCandidate newFix candidates)
-    |otherwise = {-trace (show layout ++ "\n" ++ show candidates) -}concatMap (\x -> solveSudoku (x:layout) (updateCandidate x candidates)) newFix
+    -- |otherwise = {-trace (show layout ++ "\n" ++ show candidates) -}concatMap (\x -> solveSudoku (x:layout) ({-trace "hhhhhhhhhhhhh"-} deepUpdateCandidates (updc x) (updc x))) newFix
+    |otherwise = {-trace (show layout ++ "\n" ++ show candidates) -}concatMap (\x -> solveSudoku (x:layout) ({-trace "hhhhhhhhhhhhh"-} updc x)) newFix
         where
         -- newFix = {- trace (show searchRes) -}fst searchRes, head (snd searchRes))
+        updc x = updateCandidate x candidates
         newFix = [((x,y),z) | ((x,y),zs) <- [searchRes], z<-zs]
             where
             searchRes = searchCandidate candidates
 
-calcSudoku layout = solveSudoku layout (getCandidate layout)
+calcSudoku layout = {-trace (show "fdsafsafsdaffsa" ++ show (getCandidate layout))-} solveSudoku layout $ deepUpdateCandidates oriCanditates oriCanditates
+    where
+    oriCanditates = (getCandidate layout)
 
 collectRes :: [[((Int,Int),Int)]]->String
 collectRes = concatMap ((++"\n") . collectOneRes 0)
