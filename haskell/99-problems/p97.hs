@@ -54,14 +54,17 @@ updateCandidate ((r,c),n) (((x,y),zs):cs)
 
 mergeCandidates pcdt = S.toList . S.fromList $ concatMap snd pcdt
 
-deepUpdateCandidatesOfOne ((x,y),_) candidates = deepUpdateCandidates candidates $ filter (\ ((r,c),_) -> (r == x && c /= y) || (r /= x && c == y) || (isSameCell (r,c) (x,y) && (r /= x || c /= y))) candidates
+-- buggy deepUpdateCandidatesOfOne ((x,y),_) candidates = deepUpdateCandidates candidates $ filter (\ ((r,c),_) -> (r == x && c /= y) || (r /= x && c == y) || (isSameCell (r,c) (x,y) && (r /= x || c /= y))) candidates
 deepUpdateCandidates _ [] = []
 deepUpdateCandidates candidates (psb@(pos,_):psbs)
     | length (sameRowDiff psb) > 1 = {-trace (show candidates ++ "lllll" ++ show psb ++ "111" ++ show (sameRowDiff psb))-} []
+    -- | length (sameRowDiff psb) == 1 = {-trace (show psb ++ "111" ++ show (sameRowDiff psb))-} (pos, sameRowDiff psb):psbs
     | length (sameRowDiff psb) == 1 = {-trace (show psb ++ "111" ++ show (sameRowDiff psb))-} (pos, sameRowDiff psb):deepUpdateCandidates candidates psbs
     | length (sameColDiff psb) > 1 = {-trace (show psb ++ "222" ++ show (sameColDiff psb))-} []
+    --- | length (sameColDiff psb) == 1 = {-trace (show psb ++ "222" ++ show (sameColDiff psb))-} (pos, sameColDiff psb):psbs
     | length (sameColDiff psb) == 1 = {-trace (show psb ++ "222" ++ show (sameColDiff psb))-} (pos, sameColDiff psb):deepUpdateCandidates candidates psbs
     | length (sameCellDiff psb) > 1 = {-trace (show psb ++ "333" ++ show (sameCellDiff psb))-} []
+    -- | length (sameCellDiff psb) == 1 = {-trace (show psb ++ "333" ++ show (sameCellDiff psb))-} (pos, sameCellDiff psb):psbs
     | length (sameCellDiff psb) == 1 = {-trace (show psb ++ "333" ++ show (sameCellDiff psb))-} (pos, sameCellDiff psb):deepUpdateCandidates candidates psbs
     | otherwise = psb : deepUpdateCandidates candidates psbs
         where
