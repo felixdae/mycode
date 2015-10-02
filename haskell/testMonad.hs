@@ -19,6 +19,7 @@ ex08 = do
     addOneOrTwo num
 
 main = do
+    let h = 12
     print $ ex01
     print $ ex02
     print $ ex03
