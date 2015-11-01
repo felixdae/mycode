@@ -11,7 +11,7 @@ gg = do
     constrain $ x .< 100
     constrain $ y .< 100
     constrain $ z .< 100
-    constrain $ x*x + y*y .== z*z
+    -- constrain $ x*x + y*y .== z*z
     -- return $ x*x*x + y*y*y .== z*z*(z::SWord16)
     return $ x*x + y*y .== z*(z::SWord16)
 
