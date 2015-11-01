@@ -28,6 +28,13 @@ newtype Parse a = Parse {
 
 instance Functor Parse where
     fmap f parser = parser ==> \result -> identity (f result)
+
+parse :: Parse a -> L.ByteString -> Either String a
+parse parser initState =
+    case runParse parser (ParseState initState 0) of
+        Left err -> Left err
+        Right (result, _) -> Right result
+
 w2c :: Word8 -> Char
 w2c = chr . fromIntegral
 
