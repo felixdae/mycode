@@ -44,7 +44,7 @@ identity a = Parse (\s -> Right (a, s))
 parseRawPGM = 
     parseWhileWith w2c notWhite ==> \header -> skipSpaces ==>&
     assert (header == "P5") "invalid raw header" ==>&
-    parseNat ==> \width -> skipSpaces ==>&
+    parseNat ==> \width -> skipSpaces ==>& -- (->) has low precedence
     parseNat ==> \height -> skipSpaces ==>&
     parseNat ==> \maxGrey ->
     parseByte ==>&
@@ -57,7 +57,7 @@ peekByte :: Parse (Maybe Word8)
 peekByte = (fmap fst . L.uncons . string) <$> getState
 
 parseWhile :: (Word8 -> Bool) -> Parse [Word8]
-parseWhile p = (fmap p <$> peekByte) ==> \mp ->
+parseWhile p = (fmap p <$> peekByte) ==> \mp -> -- (<$>) has low prcedence
                 if mp == Just True
                 then
                     parseByte ==> \b -> 
@@ -66,7 +66,7 @@ parseWhile p = (fmap p <$> peekByte) ==> \mp ->
                     identity []
 
 parseWhileWith :: (Word8 -> a) -> (a -> Bool) -> Parse [a]
-parseWhileWith f p = fmap f <$> parseWhile (p . f)
+parseWhileWith f p = (fmap f) <$> parseWhile (p . f)
 
 parseNat :: Parse Int
 parseNat = parseWhileWith w2c isDigit ==> \digits ->
