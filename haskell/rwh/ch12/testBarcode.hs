@@ -1,6 +1,7 @@
 import System.IO
 import System.Environment
 import qualified Data.ByteString.Lazy as BL
+-- import Data.List
 import Debug.Trace (trace)
 
 import Parse
@@ -26,6 +27,8 @@ main = do
     -- print $ distance group (head leftEvenSRL)
     -- print $ bestScores leftOddSRL [2,6,4,4]
 
+    let input = [(2,Zero),(2,One),(2,Zero),(2,One),(6,Zero),(2,One),(4,Zero),(6,One),(2,Zero),(4,One),(2,Zero),(2,One),(2,Zero),(4,One),(6,Zero),(4,One),(4,Zero),(4,One),(2,Zero),(2,One),(2,Zero),(8,One),(2,Zero),(4,One),(2,Zero),(4,One),(4,Zero),(2,One),(2,Zero),(2,One),(2,Zero),(2,One),(4,Zero),(4,One),(4,Zero),(2,One),(4,Zero),(4,One),(4,Zero),(2,One),(2,Zero),(2,One),(6,Zero),(4,One),(2,Zero),(2,One),(2,Zero),(8,One),(2,Zero),(6,One),(2,Zero),(4,One),(2,Zero),(6,One),(2,Zero),(4,One),(2,Zero),(2,One),(2,Zero)]
+    print $ candidateDigits $ input
     exeName <- getProgName
     args <- getArgs
     -- doArgs exeName args

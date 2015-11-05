@@ -260,7 +260,7 @@ solve xs = catMaybes $ map (addCheckDigit m) checkDigits
         addCheckDigit m k = (++[k]) <$> M.lookup k m
 
 withRow :: Int -> Pixmap -> (RunLength Bit -> a) -> a
-withRow n greymap f = f . runLength . elems $ posterized
+withRow n greymap f = {-trace (show (runLength . elems $ posterized)) -}f . runLength . elems $ posterized
     where
         posterized = {- trace (show $ row n greymap) -}threshold 0.4 . fmap luminance . row n $ greymap
 
