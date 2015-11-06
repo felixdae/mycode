@@ -55,10 +55,11 @@ legalMove p (x, y)
     |(x, y) `elem` p = False
     |otherwise = True
 
-makeMove :: Dsf -> Int -> Pos
-makeMove p@(h:hs) s = foldl (\acc d -> if acc /= h then acc else (
-                    if legalMove p (move h d) then (move h d) else acc
-                    )) h [s+1..8]
+-- makeMove :: Dsf -> Int -> Pos
+-- makeMove p@(h:hs) s = foldl (\acc d -> if acc /= h then acc else (
+--                     if legalMove p (move h d) then (move h d) else acc
+--                     )) h [s+1..8]
+-- 
 gd :: Pos -> Pos -> Int
 gd f t
     | move f 1 == t = 1
@@ -69,20 +70,61 @@ gd f t
     | move f 6 == t = 6
     | move f 7 == t = 7
     | move f 8 == t = 8
+    | otherwise = error "error"
+
+-- back :: Dsf -> Dsf
+-- back path@(p:pn:ps)
+--     |np /= pn = {-trace (show np)-} (np:pn:ps)
+--     |otherwise = {-trace "back"-} back (pn:ps)
+--     where
+--         np = makeMove (pn:ps) (gd pn p)
+-- 
+-- nextPos :: Dsf -> Path Dsf
+-- nextPos path@(p:ps)
+--     |np /= p = {-trace (show np)-} Path (np:path)
+--     |otherwise = {-trace "back"-} return $ back path
+--     where
+--         np = makeMove path 0
+
+chooseMin :: Dsf -> [Pos] -> Maybe Pos
+chooseMin _ [] = Nothing
+chooseMin path@(p:ps) candis = Just (foldr (\acc c -> (choice c acc)) (head candis) candis)
+    where
+        choice a b
+            |la < lb = a
+            |la > lb = b
+            |otherwise = if (gd p a) < (gd p b) then a else b
+                where
+                    la = length (filter (legalMove path) [move a x | x<-[1..8]])
+                    lb = length (filter (legalMove path) [move b x | x<-[1..8]])
+
+
+makeMove :: Dsf -> Int -> Maybe Pos
+makeMove p@(h:hs) s = chooseMin p (filter (legalMove p) [move h x | x<-[1..8]])
+
+-- makeMove p@(h:hs) s = foldl (\acc d -> case acc of
+--                         (Just _) -> acc
+--                         Nothing -> if legalMove p (move h d) then Just (move h d) else acc) Nothing [s+1..8]
 
 back :: Dsf -> Dsf
-back path@(p:pn:ps)
-    |np /= pn = {-trace (show np)-} (np:pn:ps)
-    |otherwise = {-trace "back"-} back (pn:ps)
+back path@(p:pn:ps) = 
+    -- |np /= pn = {-trace (show np)-} (np:pn:ps)
+    -- |otherwise = {-trace "back"-} back (pn:ps)
+    case mnp of
+        (Just np) -> {-trace (show np)-} (np:pn:ps)
+        Nothing -> {-trace "back"-} back (pn:ps)
     where
-        np = makeMove (pn:ps) (gd pn p)
+        mnp = makeMove (pn:ps) (gd pn p)
 
 nextPos :: Dsf -> Path Dsf
-nextPos path@(p:ps)
-    |np /= p = {-trace (show np)-} Path (np:path)
-    |otherwise = {-trace "back"-} return $ back path
+nextPos path@(p:ps) = 
+    -- |np /= p = {-trace (show np)-} Path (np:path)
+    -- |otherwise = {-trace "back"-} return $ back path
+    case mnp of
+        (Just np) -> {-trace (show np)-} Path (np:path)
+        Nothing -> {-trace "back"-} return $ back path
     where
-        np = makeMove path 0
+        mnp = makeMove path 0
 
 tryMany :: Int -> Pos -> Path Dsf
 tryMany x start = return [start] >>= foldr (<=<) return (replicate x nextPos)
